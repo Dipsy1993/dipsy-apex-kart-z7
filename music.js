@@ -10,6 +10,7 @@
     ice:'冰牙绝壁 · 冷调合成器',
   };
   const options=[['auto','随赛道'],...Object.entries(tracks),['off','关闭']];
+  const audioCacheName='apex-z7-music-v1';
 
   function make(audio,onError=()=>{}) {
     const mix=audio.createGain();
@@ -20,6 +21,30 @@
     let choice=null;
     let request=0;
 
+    async function loadTrack(url) {
+      let cache;
+      let saved;
+      try {
+        cache=await caches.open(audioCacheName);
+        saved=await cache.match(url)??await caches.match(url);
+      } catch {}
+      if(saved) {
+        try {
+          return await audio.decodeAudioData(await saved.arrayBuffer());
+        } catch {
+          try { await cache?.delete(url); } catch {}
+        }
+      }
+      const response=await fetch(url);
+      if(!response.ok) throw Error('Music request failed');
+      const copy=cache&&response.status===200?response.clone():null;
+      const buffer=await audio.decodeAudioData(await response.arrayBuffer());
+      if(copy) {
+        try { await cache.put(url,copy); } catch {}
+      }
+      return buffer;
+    }
+
     function load(id) {
       const previous=files.get(id);
       if(previous) {
@@ -28,10 +53,7 @@
         return previous;
       }
       const url=new URL(`music/${id}.mp3`,document.baseURI);
-      const pending=fetch(url).then(response=>{
-        if(!response.ok) throw Error('Music request failed');
-        return response.arrayBuffer();
-      }).then(bytes=>audio.decodeAudioData(bytes)).catch(error=>{
+      const pending=loadTrack(url).catch(error=>{
         if(files.get(id)===pending) files.delete(id);
         throw error;
       });

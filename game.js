@@ -346,7 +346,7 @@
       tires.start();
       music=KartMusic.make(audio,()=>{
         const status=dialog.querySelector('[data-music-status]');
-        if(status) status.textContent='曲目加载失败，请联网后重新选择。';
+        if(status) status.textContent=navigator.onLine===false?'这首曲目尚未缓存，离线仍可比赛。':'曲目暂时无法播放，仍可继续比赛。';
       });
     }
     KartSession.resumeAudio(audio);
@@ -354,9 +354,9 @@
   }
 
   function updateMusic() {
-    const id=musicChoice==='auto'?(race?.track.id??'garage'):musicChoice;
+    const id=race?(musicChoice==='auto'?race.track.id:musicChoice):'off';
     const quiet=paused||race?.phase==='finished';
-    const local=localTracks.find(track=>track.id===id);
+    const local=localTracks.find(track=>track.id===musicChoice);
     music?.select(local?'off':id,quiet,musicVolume);
     if(local&&!document.hidden) {
       if(!localPlayer) {
