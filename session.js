@@ -70,7 +70,40 @@
     };
   }
 
-  const api={createRaceClock,createSaveStore,resumeAudio,resolveDriveInput};
+  function createFrameStats() {
+    const windowMs=10000;
+    const marks=new Float64Array(2048);
+    let next=0, used=0;
+    const at=(offset)=>marks[(next+marks.length-used+offset)%marks.length];
+
+    return {
+      reset() {next=0;used=0;},
+      record(now) {
+        if(!Number.isFinite(now)||used&&now<=at(used-1)) return;
+        marks[next]=now;
+        next=(next+1)%marks.length;
+        used=Math.min(used+1,marks.length);
+      },
+      snapshot() {
+        if(used<2) return null;
+        const last=at(used-1);
+        let first=0;
+        while(at(first)<last-windowMs) first++;
+        if(first===used-1) return null;
+        const intervals=[];
+        for(let i=first+1;i<used;i++) intervals.push(at(i)-at(i-1));
+        const span=last-at(first);
+        intervals.sort((a,b)=>a-b);
+        return {
+          fps:intervals.length*1000/span,
+          p95:intervals[Math.ceil(intervals.length*.95)-1],
+          seconds:span/1000,
+        };
+      },
+    };
+  }
+
+  const api={createRaceClock,createSaveStore,resumeAudio,resolveDriveInput,createFrameStats};
   if(typeof module==='object') module.exports=api;
   else root.KartSession=api;
 })(globalThis);

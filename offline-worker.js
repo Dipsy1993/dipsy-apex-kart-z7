@@ -1,6 +1,6 @@
 'use strict';
 
-const cacheName = 'apex-z7-playtest-v4';
+const cacheName = 'apex-z7-playtest-v5';
 const homePage = self.registration.scope;
 const appFiles = [
   './', 'style.css', 'kart.js', 'track-visual.js', 'scene.js',

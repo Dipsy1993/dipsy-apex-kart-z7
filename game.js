@@ -10,6 +10,8 @@
   let saving=false;
   let pendingFinish=null;
   const raceClock=KartSession.createRaceClock();
+  const frameStats=KartSession.createFrameStats();
+  let frameRenderer;
   const saveMessages={
     damaged:'本地存档无法读取。已保留原文件，可先试驾。恢复有效存档后再购买或保存成绩。',
     unavailable:'无法写入存档。请检查浏览器的存储空间或权限，然后重试。',
@@ -509,6 +511,7 @@
     clearKeys();
     paused = false;
     raceClock.reset();
+    frameStats.reset();
     lastRaceRender=-Infinity;
     lastRaceHud=-Infinity;
     resumeRequested=false;
@@ -552,6 +555,27 @@
     } else window.scrollTo(0, 0);
   }
 
+  function countRaceFrame(canvas) {
+    if(paused||race.phase!=='racing'||!canvas.dataset.renderer) return;
+    if(frameRenderer!==canvas.dataset.renderer) {
+      frameRenderer=canvas.dataset.renderer;
+      frameStats.reset();
+    }
+    frameStats.record(performance.now());
+  }
+
+  function performancePanel() {
+    const measured=frameStats.snapshot();
+    const prior=document.body.dataset.frameBuild==='before';
+    const build=document.body.dataset.frameBuild?(prior?'优化前':'优化后'):'';
+    const renderer=$('race-canvas').dataset.renderer==='webgl'?'WebGL':'Canvas';
+    const context=[build,renderer,qualityLabels[raceScreen.dataset.quality]].filter(Boolean).join(' · ');
+    const note=measured?`最近 ${measured.seconds.toFixed(1)} 秒 · ${context}`:'发车后开始采样';
+    const fps=measured?measured.fps.toFixed(1):'—';
+    const p95=measured?measured.p95.toFixed(1):'—';
+    return `<section class="performance-panel" aria-label="性能统计"><h3>性能统计</h3><p>${note}</p><dl><div><dt>实际绘制 FPS</dt><dd id="performance-fps">${fps}</dd></div><div><dt>P95 帧间隔</dt><dd id="performance-p95">${p95}<small> ms</small></dd></div></dl></section>`;
+  }
+
   function pauseRace(reason='') {
     if (!race || race.phase === 'finished' || paused) return;
     clearKeys();
@@ -561,7 +585,7 @@
     engineSound();
     const quality=qualityLabels[raceScreen.dataset.quality];
     const throttle=touchDevice.matches?`<button class="secondary" data-action="throttle">油门 · ${autoThrottle()?'自动':'手动'}</button>`:'';
-    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2>${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${musicPicker()}<div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button><button class="primary" data-action="resume">继续比赛</button></div>`);
+    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2>${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${performancePanel()}<details class="pause-music"><summary>背景音乐设置</summary>${musicPicker()}</details><div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button><button class="primary" data-action="resume">继续比赛</button></div>`);
   }
 
   function finishRace() {
@@ -1043,6 +1067,7 @@
             renderHud();
           }
           KartRender.raceFrame(canvas, race);
+          countRaceFrame(canvas);
         }
         engineSound();
       }
@@ -1338,6 +1363,7 @@
     if (dialogKind === 'pause' && paused && !dialog.open) {
       paused=false;
       raceClock.reset();
+      frameStats.reset();
       lastRaceRender=-Infinity;
       if(!resumeRequested&&!document.hidden) KartSession.resumeAudio(audio);
       resumeRequested=false;
@@ -1414,6 +1440,7 @@
   resize.observe($('race-screen'));
   compactRace.addEventListener('change',()=>{
     clearKeys();
+    frameStats.reset();
     lastRaceRender=-Infinity;
   });
   renderCredits();
