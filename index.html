@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#141614">
+  <meta name="description" content="弯道研究所，原创街机卡丁车游戏。挑选赛车，在六条赛道上漂移、攒氮气，刷新圈速。">
+  <title>弯道研究所 · Z7 满金币试玩</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="kart.js"></script>
+  <script defer src="track-visual.js"></script>
+  <script defer src="scene.js"></script>
+  <script defer src="render.js"></script>
+  <script defer src="music.js"></script>
+  <script defer src="session.js"></script>
+  <script defer src="playtest.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <div id="garage">
+    <p id="save-status" class="save-status" role="status" hidden></p>
+    <header class="masthead">
+      <div class="header-inner">
+        <a href="#garage" class="brand" aria-label="弯道研究所首页"><i class="brand-mark" aria-hidden="true"></i><b>APEX<span>KART</span></b><span class="brand-cn">弯道研究所</span></a>
+        <nav aria-label="主菜单"><button class="nav-tab active" data-page="garage-page">车库</button><button class="nav-tab" data-page="track-page">赛事</button></nav>
+        <div class="account"><span class="credit" title="车库点数"><i aria-hidden="true">◈</i><b id="credits">120</b></span><button id="music" class="icon-btn" title="背景音乐" aria-label="背景音乐">♫</button><button id="sound" class="icon-btn" title="比赛音效" aria-label="开启声音" aria-pressed="false"><span aria-hidden="true">♪</span></button><button id="help" class="icon-btn" title="操作说明" aria-label="操作说明">?</button></div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section id="garage-page" aria-labelledby="garage-title">
+        <div class="section-heading">
+          <div><p class="eyebrow"><i></i> GARAGE</p><h1 id="garage-title">赛车车库</h1><p id="offline-status" class="small-note" role="status">正在准备离线游玩…</p></div>
+          <div class="heading-actions"><button class="secondary" id="training">新手训练</button><button class="primary heading-action" id="quick-race">选择赛道 <span aria-hidden="true">↗</span></button></div>
+        </div>
+        <div class="showroom">
+          <div class="stage" id="stage">
+            <div class="stage-grid" aria-hidden="true"></div>
+            <div id="hero-code" class="hero-code" aria-hidden="true">SPARK</div>
+            <canvas id="hero-car" aria-label="车辆三维展示"></canvas>
+            <div class="stage-top"><span id="stage-style">经典街机</span><span id="stage-index">1 代 / 7 代</span></div>
+            <div class="stage-bottom"><button id="rotate" class="turn-btn" title="自动旋转车辆" aria-pressed="false"><span aria-hidden="true">↻</span> 旋转展示</button><span class="drag-tip">拖动查看车身</span></div>
+          </div>
+          <article class="spec" aria-labelledby="car-name">
+            <div class="spec-top"><span class="rank" id="car-tier">C1</span><span id="car-kind">均衡型</span><span class="owned" id="car-owned">已拥有</span></div>
+            <h2 id="car-name">小闪电</h2><p id="car-desc" class="description"></p>
+            <dl id="stats" class="stats"></dl>
+            <div class="car-upgrade"><b id="car-feature"></b><span id="car-effect"></span></div>
+            <button id="equip" class="primary equip" type="button"></button>
+            <button id="test-drive" class="secondary test-drive" type="button">试驾这辆车 <span aria-hidden="true">↗</span></button>
+            <button id="generation-drive" class="secondary test-drive" type="button" hidden></button>
+            <button id="flagship-drive" class="secondary test-drive" type="button" hidden>PRO / SR / Z7 同场试驾</button>
+            <p id="garage-note" class="small-note" aria-live="polite"></p>
+          </article>
+        </div>
+        <div class="collection-heading"><h2>车辆收藏</h2><span id="collection-count">1 / 35 已拥有</span></div>
+        <div id="generations" class="generations" aria-label="车系代际" hidden></div>
+        <div class="car-grid" id="car-grid" aria-label="车型列表"></div>
+        <section class="workshop" aria-labelledby="workshop-title">
+          <div class="collection-heading"><h2 id="workshop-title">改装车间</h2><label>对照 <select id="compare-base" aria-label="对照车型"><option value="factory">本车原厂</option></select></label></div>
+          <div id="part-slots" class="part-slots"></div>
+          <p id="part-status" class="part-status" role="status"></p>
+          <div class="compare-views" id="compare-views" aria-label="对照镜头">
+            <button type="button" data-view="whole" aria-pressed="false">整车</button>
+            <button type="button" data-view="front" aria-pressed="false">车头</button>
+            <button type="button" data-view="side" aria-pressed="false">侧面</button>
+            <button type="button" data-view="rear" aria-pressed="true">车尾特写</button>
+            <button type="button" data-view="straight" aria-pressed="false">正后方</button>
+            <button type="button" data-view="suspension" aria-pressed="false">悬挂</button>
+            <button type="button" data-view="differential" aria-pressed="false">差速器</button>
+            <button type="button" id="compare-grey" aria-pressed="false">灰模</button>
+            <button type="button" id="tail-preview" aria-pressed="false">展开车尾</button>
+          </div>
+          <div class="compare-cars">
+            <figure><figcaption id="compare-before-label"></figcaption><canvas id="compare-before" aria-label="基准配置后视图"></canvas></figure>
+            <figure><figcaption id="compare-after-label"></figcaption><canvas id="compare-after" aria-label="当前预览配置后视图"></canvas></figure>
+          </div>
+          <p id="compare-stats" class="compare-stats"></p>
+          <p id="tail-rig-note" class="compare-stats"></p>
+          <button id="compare-drive" class="primary" type="button">开始 A/B 短段试驾 ↗</button>
+        </section>
+      </section>
+
+      <section id="track-page" hidden aria-labelledby="track-title">
+        <div class="section-heading"><div><p class="eyebrow"><i></i> RACE SELECT</p><h1 id="track-title">选择赛道</h1></div><span class="equipped" id="equipped"></span></div>
+        <div class="mode-picker" aria-label="竞赛模式"><button data-mode="race" aria-pressed="true"><b>大奖赛</b><span>6 车 · 3 圈</span></button><button data-mode="solo" aria-pressed="false"><b>计时挑战</b><span>单人 · 2 圈</span></button><button data-mode="cup" aria-pressed="false"><b>三站杯赛</b><span>6 车 · 每站 1 圈</span></button></div>
+        <label id="difficulty-picker" class="difficulty-picker">AI 难度<select id="race-difficulty"><option value="rookie">入门</option><option value="club">进阶</option><option value="pro">专家</option></select></label>
+        <div id="track-grid" class="track-grid" aria-label="赛道列表"></div>
+        <div class="track-footer"><div><b id="track-selected"></b><p id="track-record"></p></div><button class="primary" id="start-race">发车 <span aria-hidden="true">→</span></button></div>
+      </section>
+      <footer class="footer"><span>APEX KART</span><span><kbd>WASD</kbd> 驾驶 <kbd>SHIFT</kbd> 漂移 <kbd>SPACE</kbd> 氮气</span></footer>
+    </main>
+  </div>
+
+  <section id="race-screen" class="race-screen" hidden aria-label="竞速赛场">
+    <canvas id="race-canvas" aria-label="赛道画面"></canvas>
+    <div class="speed-streaks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="hud">
+      <div class="race-top">
+        <div class="race-tag"><small id="race-track"></small><div><b id="lap">1 / 3</b><span>圈</span></div></div>
+        <div class="race-time"><small>用时</small><b id="timer">00:00.00</b></div>
+        <div class="race-tag position"><small id="place-label">名次</small><div><b id="place">6</b><span id="place-total">/ 6</span></div></div>
+        <button class="icon-btn race-pause" id="pause" aria-label="暂停">Ⅱ</button>
+      </div>
+      <div class="race-progress" aria-hidden="true"><div id="race-progress"></div></div>
+      <p class="trial-hint" id="trial-hint" hidden></p>
+      <div class="sector-hud" id="sector-hud" hidden><span id="sector-label"></span><b id="sector-delta"></b></div>
+      <button class="ghost-toggle" id="ghost-toggle" aria-pressed="true" hidden>幽灵车 <kbd>G</kbd></button>
+      <canvas id="race-map" class="race-map" aria-label="赛道小地图"></canvas>
+      <div id="countdown" class="countdown"></div>
+      <div id="race-message" class="race-message" aria-live="polite"></div>
+      <div class="race-bottom">
+        <div class="nitro"><div><b>氮气</b><span id="tanks">◇ ◇</span></div><div class="nitro-track"><div id="nitro-bar"></div></div><span class="nitro-hint" id="nitro-hint">按住 Shift + 转向蓄气</span>
+          <div class="wake-hud" id="wake-hud" hidden><span id="wake-label"></span><div class="wake-meter" role="meter" aria-label="尾流蓄势" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="wake-meter"><i></i></div></div>
+        </div>
+        <div class="speed"><b id="speed">000</b><span>KM/H</span></div>
+      </div>
+    </div>
+    <div class="touch-controls" aria-label="触屏操作">
+      <div><button data-key="ArrowLeft" aria-label="向左">◀</button><button data-key="ArrowRight" aria-label="向右">▶</button></div>
+      <div><button data-key="ShiftLeft">漂移</button><button data-key="Space">氮气</button><button data-key="ArrowDown">刹车</button><button class="gas" data-key="ArrowUp">油门</button></div>
+    </div>
+  </section>
+
+  <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+</body>
+</html>

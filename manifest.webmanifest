@@ -1,0 +1,11 @@
+{
+  "id": "./",
+  "name": "弯道研究所 · Z7 试玩",
+  "short_name": "弯道研究所",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141614",
+  "theme_color": "#141614",
+  "lang": "zh-CN"
+}
