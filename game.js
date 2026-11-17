@@ -76,14 +76,19 @@
   let dialogKind = '';
   let soundEnabled = false;
   const musicKey='apex-kart-music';
-  let musicChoice='off';
+  const volumeKey='apex-kart-music-volume';
+  let musicChoice='auto';
+  let musicVolume=.45;
   try {
     const stored=localStorage.getItem(musicKey);
     if(KartMusic.options.some(([id])=>id===stored)) musicChoice=stored;
+    const volume=localStorage.getItem(volumeKey);
+    if(volume!==null&&Number.isFinite(Number(volume))) musicVolume=clamp(Number(volume),0,1);
   } catch {}
   let music;
   let localTracks=[];
   let localPlayer;
+  let localMusicGain;
   let audio = null;
   let engine = null;
   let engineHarmonic = null;
@@ -95,6 +100,7 @@
   let last = 0;
   let lastMap=-1;
   let lastRaceRender=-Infinity;
+  let lastRaceHud=-Infinity;
   let framePending=false;
   let resumeRequested=false;
   const engineProfiles=[
@@ -336,7 +342,10 @@
       tireGain.gain.value=0;
       tires.connect(tireFilter).connect(tireGain).connect(audio.destination);
       tires.start();
-      music=KartMusic.make(audio);
+      music=KartMusic.make(audio,()=>{
+        const status=dialog.querySelector('[data-music-status]');
+        if(status) status.textContent='曲目加载失败，请联网后重新选择。';
+      });
     }
     KartSession.resumeAudio(audio);
     updateMusic();
@@ -346,11 +355,19 @@
     const id=musicChoice==='auto'?(race?.track.id??'garage'):musicChoice;
     const quiet=paused||race?.phase==='finished';
     const local=localTracks.find(track=>track.id===id);
-    music?.select(local?'off':id,quiet);
+    music?.select(local?'off':id,quiet,musicVolume);
     if(local&&!document.hidden) {
-      localPlayer??=new Audio();
+      if(!localPlayer) {
+        localPlayer=new Audio();
+        if(audio?.createMediaElementSource) {
+          localMusicGain=audio.createGain();
+          audio.createMediaElementSource(localPlayer).connect(localMusicGain).connect(audio.destination);
+        }
+      }
       localPlayer.loop=true;
-      localPlayer.volume=quiet?.22:.48;
+      const level=musicVolume*(quiet?.42:1);
+      if(localMusicGain) localMusicGain.gain.setTargetAtTime(level,audio.currentTime,.10);
+      else localPlayer.volume=level;
       if(localPlayer.src!==local.url) localPlayer.src=local.url;
       if(localPlayer.paused) localPlayer.play().catch(error=>{
         if(localPlayer.src===local.url&&musicChoice===local.id) {
@@ -367,7 +384,7 @@
 
   function musicPicker() {
     const options=KartMusic.options.map(([id,name])=>`<option value="${id}" ${id===musicChoice?'selected':''}>${name}</option>`).join('');
-    return `<div class="music-controls"><label class="music-picker">背景音乐<select data-music>${options}</select></label><label class="music-import">导入本地音乐<input type="file" accept="audio/*,.mp3,.ogg,.m4a,.wav,.flac" data-music-files multiple></label><div data-music-status role="status"></div><button type="button" class="secondary" data-action="music-play" hidden>播放所选音乐</button></div>`;
+    return `<div class="music-controls"><label class="music-picker">背景音乐<select data-music>${options}</select></label><label class="music-volume">音乐音量<input type="range" min="0" max="100" step="1" value="${Math.round(musicVolume*100)}" data-music-volume></label><label class="music-import">导入本地音乐<input type="file" accept="audio/*,.mp3,.ogg,.m4a,.wav,.flac" data-music-files multiple></label><div data-music-status role="status"></div><button type="button" class="secondary" data-action="music-play" hidden>播放所选音乐</button></div>`;
   }
 
   function updateMusicMenu() {
@@ -493,6 +510,7 @@
     paused = false;
     raceClock.reset();
     lastRaceRender=-Infinity;
+    lastRaceHud=-Infinity;
     resumeRequested=false;
     lastMap=-1;
     pendingFinish=null;
@@ -1016,10 +1034,14 @@
         if(!onTime&&race.phase!=='countdown') pauseRace('画面中断，比赛已暂停。继续后从原位置恢复。');
         const canvas=$('race-canvas');
         const quality=raceScreen.dataset.quality;
-        const capped=touchDevice.matches&&(quality==='low'||quality==='balanced'&&canvas.dataset.renderer==='canvas');
-        if(!capped||now-lastRaceRender>=1000/30-.5||race.phase==='finished') {
-          lastRaceRender=now;
-          renderHud();
+        const mobile=touchDevice.matches;
+        const interval=1000/(quality==='low'||quality==='balanced'&&canvas.dataset.renderer==='canvas'?30:60);
+        if(!mobile||now-lastRaceRender>=interval-.75||race.phase==='finished') {
+          lastRaceRender=mobile?Math.max(now-interval*.25,Math.min(now,lastRaceRender+interval)):now;
+          if(!mobile||now-lastRaceHud>=32||race.phase==='finished') {
+            lastRaceHud=now;
+            renderHud();
+          }
           KartRender.raceFrame(canvas, race);
         }
         engineSound();
@@ -1063,6 +1085,21 @@
   document.querySelectorAll('[data-mode]').forEach(button => { button.onclick = () => { mode = button.dataset.mode; renderTrack(); }; });
   document.querySelector('.brand').onclick = event => { event.preventDefault(); switchPage('garage-page'); };
   $('quick-race').onclick = () => switchPage('track-page', true);
+  const fullscreen=$('full-play');
+  const homeApp=matchMedia('(display-mode: standalone)');
+  const updateFullscreen=()=>{
+    fullscreen.hidden=!touchDevice.matches||Boolean(navigator.standalone||homeApp.matches||document.fullscreenElement);
+  };
+  updateFullscreen();
+  touchDevice.addEventListener('change',updateFullscreen);
+  homeApp.addEventListener('change',updateFullscreen);
+  document.addEventListener('fullscreenchange',updateFullscreen);
+  fullscreen.onclick=async()=>{
+    if(document.fullscreenEnabled&&!/Apple/i.test(navigator.vendor)) {
+      try { await document.documentElement.requestFullscreen(); return; } catch {}
+    }
+    showDialog('fullscreen','<h2 id="dialog-title">全屏游玩</h2><ol><li>在 Safari 点「共享」，选择「添加到主屏幕」。</li><li>如果看到「作为网页 App 打开」，请开启它。</li><li>回到主屏幕，点《弯道研究所》图标进入。</li></ol><div class="dialog-actions"><button class="primary" data-action="close">知道了</button></div>');
+  };
   $('start-race').onclick = ()=>mode==='cup'?showCup():startRace();
   $('test-drive').onclick = () => { trialCar={id:inspected,parts:{...previewParts}}; startRace(); };
   $('compare-drive').onclick=()=>{
@@ -1180,6 +1217,12 @@
     beep(523.25, .13);
   };
   $('music').onclick=()=>showDialog('music',`<h2 id="dialog-title">背景音乐</h2>${musicPicker()}<div class="dialog-actions"><button class="primary" data-action="close">完成</button></div>`);
+  dialog.addEventListener('input',event=>{
+    if(!event.target.matches('[data-music-volume]')) return;
+    musicVolume=Number(event.target.value)/100;
+    try {localStorage.setItem(volumeKey,String(musicVolume));} catch {}
+    updateMusic();
+  });
   dialog.addEventListener('change',event=>{
     if(event.target.matches('[data-music-files],[data-music]')) dialog.querySelector('[data-music-status]').textContent='';
     if(event.target.matches('[data-music-files]')) {
@@ -1190,7 +1233,7 @@
       if(localTracks.length) {
         musicChoice=localTracks.at(-1).id;
         updateMusicMenu();
-        updateMusic();
+        audioStart();
       }
       event.target.value='';
       return;
@@ -1200,7 +1243,6 @@
     if(!musicChoice.startsWith('local-')) {
       try {localStorage.setItem(musicKey,musicChoice);} catch {}
     }
-    if(musicChoice.startsWith('local-')) { updateMusic(); return; }
     audioStart();
     if(musicChoice==='off') updateMusic();
   });

@@ -189,4 +189,18 @@ dialog{width:min(470px,calc(100% - 28px));max-height:calc(100% - 28px);color:var
   .touch-controls>div{gap:8px}
   .drive-actions .drift-pedal{width:calc(var(--pedal-width) + 15px)}
   .race-map{opacity:1}
+  .race-progress{display:none}
+}
+.music-volume{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  color:var(--dim);
+  font-size:13px;
+}
+.music-volume input{
+  min-width:0;
+  flex:1;
+  min-height:36px;
+  accent-color:var(--acid);
 }
