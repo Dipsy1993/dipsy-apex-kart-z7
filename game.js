@@ -27,12 +27,20 @@
     return result;
   }
   const raceScreen=$('race-screen');
-  const defaultQuality=matchMedia('(pointer:coarse)').matches?'low':'high';
+  const touchDevice=matchMedia('(pointer:coarse)');
+  const qualityLabels={low:'流畅',balanced:'清晰',high:'高'};
+  const defaultQuality=touchDevice.matches?'balanced':'high';
+  let mobileThrottle='auto';
   try {
     const stored=localStorage.getItem('apex-kart-quality');
-    raceScreen.dataset.quality=['high','low'].includes(stored)?stored:defaultQuality;
+    raceScreen.dataset.quality=Object.hasOwn(qualityLabels,stored)?stored:defaultQuality;
+    if(localStorage.getItem('apex-kart-throttle')==='manual') mobileThrottle='manual';
   }
   catch { raceScreen.dataset.quality=defaultQuality; }
+  const autoThrottle=()=>touchDevice.matches&&mobileThrottle==='auto';
+  const syncTouchMode=()=>{raceScreen.dataset.throttle=autoThrottle()?'auto':'manual';};
+  syncTouchMode();
+  touchDevice.addEventListener('change',syncTouchMode);
   const tiers = { C1: '#c9f74b', E2: '#ffac72', G3: '#59d8ff', R4: '#cba2ff', PRO: '#ff8796', SR:'#84f0ee', Z7:'#efba83' };
   const timeText = time => {
     const ticks = Math.floor(time * 100);
@@ -96,7 +104,6 @@
     {idle:54,rate:1.46,ratio:2.5,filter:430,load:610},
     {idle:60,rate:1.81,ratio:3,filter:480,load:715},
   ];
-  const touchDevice=matchMedia('(pointer:coarse)');
   const compactRace=matchMedia('(max-height: 500px) and (orientation: landscape)');
   const keys = new Set();
   const touches = new Map();
@@ -534,8 +541,9 @@
     raceClock.reset();
     updateMusic();
     engineSound();
-    const quality=raceScreen.dataset.quality==='low'?'低':'高';
-    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2>${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${musicPicker()}<div class="dialog-actions"><button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button><button class="primary" data-action="resume">继续比赛</button></div>`);
+    const quality=qualityLabels[raceScreen.dataset.quality];
+    const throttle=touchDevice.matches?`<button class="secondary" data-action="throttle">油门 · ${autoThrottle()?'自动':'手动'}</button>`:'';
+    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2>${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${musicPicker()}<div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button><button class="primary" data-action="resume">继续比赛</button></div>`);
   }
 
   function finishRace() {
@@ -872,7 +880,7 @@
     $('speed').textContent = String(Math.round(race.speed * 3)).padStart(3, '0');
     $('tanks').textContent = `${race.tanks >= 1 ? '◆' : '◇'} ${race.tanks >= 2 ? '◆' : '◇'}`;
     $('nitro-bar').style.width = `${(race.boost > 0 ? race.boost / race.boostDuration : race.tanks === 2 ? 1 : race.charge) * 100}%`;
-    $('nitro-hint').textContent = race.boost > 0 ? '氮气加速中' : race.boostQueue > 0 ? '松漂移 · 回正后点火' : race.tanks ? '空格 / 氮气键加速' : '按住漂移键 + 转向蓄气';
+    $('nitro-hint').textContent = race.boost > 0 ? '氮气加速中' : race.boostQueue > 0 ? '松漂移 · 回正后点火' : race.tanks ? (touchDevice.matches?'按氮气键加速':'按空格加速') : '漂移加转向蓄气';
     const wake=race.wake;
     const showWake=Boolean(wake&&(wake.charge>0||wake.burst>0||lesson==='draft'&&!race.lessonPassed));
     const hud=$('wake-hud');
@@ -944,12 +952,7 @@
     const wakeReady=race.wake?.readies??0;
     const wakeLaunch=race.wake?.launches??0;
     const wakePass=race.wake?.passes??0;
-    const down = (...names) => names.some(name => keys.has(name) || [...touches.values()].includes(name));
-    const input={
-      throttle: down('ArrowUp', 'KeyW'), brake: down('ArrowDown', 'KeyS'),
-      steer: Number(down('ArrowRight', 'KeyD')) - Number(down('ArrowLeft', 'KeyA')),
-      drift: down('ShiftLeft', 'ShiftRight'), boost: down('Space'),
-    };
+    const input=KartSession.resolveDriveInput(keys,touches,autoThrottle());
     const previousDrift=race.driftDirection;
     Kart.update(race,input,dt);
     if(lesson==='brake'&&input.brake&&race.speed<=65&&race.distance<770) race.braked=true;
@@ -1010,12 +1013,14 @@
           drive(step);
           return race.phase!=='finished';
         });
-        if(!onTime) pauseRace('画面中断，比赛已暂停。继续后从原位置恢复。');
-        const capped=touchDevice.matches&&raceScreen.dataset.quality==='low';
+        if(!onTime&&race.phase!=='countdown') pauseRace('画面中断，比赛已暂停。继续后从原位置恢复。');
+        const canvas=$('race-canvas');
+        const quality=raceScreen.dataset.quality;
+        const capped=touchDevice.matches&&(quality==='low'||quality==='balanced'&&canvas.dataset.renderer==='canvas');
         if(!capped||now-lastRaceRender>=1000/30-.5||race.phase==='finished') {
           lastRaceRender=now;
           renderHud();
-          KartRender.raceFrame($('race-canvas'), race);
+          KartRender.raceFrame(canvas, race);
         }
         engineSound();
       }
@@ -1251,10 +1256,18 @@
       updateMusic();
       return;
     }
+    if(action==='throttle') {
+      mobileThrottle=autoThrottle()?'manual':'auto';
+      syncTouchMode();
+      event.target.closest('button').textContent=`油门 · ${autoThrottle()?'自动':'手动'}`;
+      try { localStorage.setItem('apex-kart-throttle',mobileThrottle); } catch {}
+      return;
+    }
     if(action==='quality') {
-      const next=raceScreen.dataset.quality==='low'?'high':'low';
+      const options=Object.keys(qualityLabels);
+      const next=options[(options.indexOf(raceScreen.dataset.quality)+1)%options.length];
       raceScreen.dataset.quality=next;
-      event.target.closest('button').textContent=`画质 · ${next==='low'?'低':'高'}`;
+      event.target.closest('button').textContent=`画质 · ${qualityLabels[next]}`;
       try { localStorage.setItem('apex-kart-quality',next); } catch {}
       return;
     }
@@ -1325,9 +1338,13 @@
     renderCredits();
     if(!race) (page==='garage-page'?renderCar:renderTrack)();
   });
-  document.querySelectorAll('[data-key]').forEach(button => {
+  for(const type of ['contextmenu','selectstart']) {
+    raceScreen.addEventListener(type,event=>event.preventDefault());
+  }
+  raceScreen.querySelectorAll('[data-key]').forEach(button => {
     button.onpointerdown = event => {
       event.preventDefault();
+      if(paused||!race||race.phase==='finished') return;
       button.setPointerCapture(event.pointerId);
       touches.set(event.pointerId, button.dataset.key);
       button.classList.add('held');

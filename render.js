@@ -3,10 +3,10 @@
   const { clamp, wrap } = Kart;
   const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 
-  function surface(canvas, low = false) {
+  function surface(canvas, quality='high') {
     const { width, height } = canvas.getBoundingClientRect();
     if (!width || !height) return null;
-    const ratio = Math.min(low?.78:1.8, window.devicePixelRatio || 1);
+    const ratio = Math.min(quality==='low'?.78:quality==='balanced'?1.22:1.8,window.devicePixelRatio || 1);
     const pixels = [Math.round(width * ratio), Math.round(height * ratio)];
     if (canvas.width !== pixels[0] || canvas.height !== pixels[1]) {
       [canvas.width, canvas.height] = pixels;
@@ -417,8 +417,9 @@
     canvas.dataset.tailDeploy=(race.tailDeploy??0).toFixed(2);
     canvas.dataset.trackCue=Kart.trackVisualCue(race.track,race.distance)?.zone??'';
     canvas.dataset.shade=shade.toFixed(2);
-    const low=canvas.parentElement.dataset.quality==='low';
-    const s = surface(canvas,low);
+    const quality=canvas.parentElement.dataset.quality;
+    const low=quality!=='high';
+    const s = surface(canvas,quality);
     if (!s) return;
     const { ctx, width: w, height: h } = s;
     const track = race.track;

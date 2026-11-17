@@ -57,7 +57,20 @@
     catch {return Promise.resolve();}
   }
 
-  const api={createRaceClock,createSaveStore,resumeAudio};
+  function resolveDriveInput(keys,touches,autoThrottle) {
+    const held=new Set([...keys,...touches.values()]);
+    const down=(...codes)=>codes.some(code=>held.has(code));
+    const brake=down('ArrowDown','KeyS');
+    return {
+      throttle:down('ArrowUp','KeyW')||(autoThrottle&&!brake),
+      brake,
+      steer:Number(down('ArrowRight','KeyD'))-Number(down('ArrowLeft','KeyA')),
+      drift:down('ShiftLeft','ShiftRight'),
+      boost:down('Space'),
+    };
+  }
+
+  const api={createRaceClock,createSaveStore,resumeAudio,resolveDriveInput};
   if(typeof module==='object') module.exports=api;
   else root.KartSession=api;
 })(globalThis);
