@@ -1,6 +1,6 @@
 'use strict';
 
-const cacheName = 'apex-z7-playtest-v7';
+const cacheName = 'apex-z7-playtest-v8';
 const audioCacheName = 'apex-z7-music-v1';
 const homePage = self.registration.scope;
 const audioDirectory = new URL('music/', homePage).href;

@@ -245,7 +245,7 @@ body[data-race-viewport]{
 }
 body[data-race-viewport] .race-screen{
   inset:var(--race-top) auto auto var(--race-left);
-  width:var(--race-width);
+  width:min(100vw,var(--race-width));
   height:var(--race-height);
   transform:scale(var(--race-unzoom));
   transform-origin:top left;
@@ -254,7 +254,7 @@ body[data-race-viewport] dialog{
   position:fixed;
   inset:var(--race-center-y) auto auto var(--race-center-x);
   margin:0;
-  width:min(470px,calc(var(--race-width) - 24px));
+  width:min(470px,calc(min(100vw,var(--race-width)) - 24px));
   max-height:calc(var(--race-height) - 20px);
   transform:translate(-50%,-50%) scale(var(--race-unzoom));
 }

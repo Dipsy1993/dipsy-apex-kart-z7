@@ -117,6 +117,7 @@
   const touches = new Map();
   let raceViewport;
   let viewportFrame=0;
+  let viewportSettle=0;
   const carGrid = $('car-grid');
   const trackGrid = $('track-grid');
   const dialog = $('dialog');
@@ -520,11 +521,16 @@
   }
 
   function queueRaceViewport() {
-    if(!race||viewportFrame) return;
-    viewportFrame=requestAnimationFrame(()=>{
-      viewportFrame=0;
-      syncRaceViewport();
-    });
+    if(!race) return;
+    if(!viewportFrame) {
+      viewportFrame=requestAnimationFrame(()=>{
+        viewportFrame=0;
+        syncRaceViewport();
+      });
+    }
+    // During rotation Safari can notify before the final visual size is available.
+    clearTimeout(viewportSettle);
+    viewportSettle=setTimeout(syncRaceViewport,140);
   }
 
   function showDialog(kind, html) {
@@ -1464,6 +1470,8 @@
     if(event.touches.length>1&&event.cancelable) event.preventDefault();
   },{passive:false});
   window.addEventListener('resize',queueRaceViewport);
+  window.addEventListener('orientationchange',queueRaceViewport);
+  matchMedia('(orientation: portrait)').addEventListener('change',queueRaceViewport);
   window.visualViewport?.addEventListener('resize',queueRaceViewport);
   window.visualViewport?.addEventListener('scroll',queueRaceViewport);
   touchDevice.addEventListener('change',queueRaceViewport);
@@ -1504,6 +1512,7 @@
   });
   const resize = new ResizeObserver(() => {
     if (race) {
+      queueRaceViewport();
       lastMap=-1;
       renderHud();
       KartRender.raceFrame($('race-canvas'), race);
