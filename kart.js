@@ -1244,6 +1244,14 @@
     return Object.assign(race,{distance:start,speed,tanks:course?.tanks??(course?0:1),laps:1,trial});
   }
 
+  function createQuickDrive(carId, selection) {
+    const race=createWorkshopTrial(carId,selection);
+    race.trial.start=120;
+    race.trial.end=2220;
+    race.distance=race.trial.start;
+    return race;
+  }
+
   function measureWorkshop(race,input,previous,previousSpeed,dt) {
     const trial=race.trial;
     const index=trial.gateIndex;
@@ -1792,6 +1800,7 @@
   }
 
   const Kart = { cars, tracks, trackLandmarks, trackVisualCue, difficulties, clamp, lerp, wrap, courseAt, roadAt, brakingZones, rivalTargetSpeed, HALF_ROAD, KART_CLEARANCE, coastWaterHeight, recordKey, sanitizeSave, purchase, createRace, createDraftTrial, wakeGuide, createWorkshopTrial, workshopCourses, createSectorPractice, weakestSector, createCup, createCupRace, createCupPractice, recordCupResult, scoreCup, cupTracks, cupCourses, cupStandings, cornerWeight, update, award, startTimeTrial, saveReplay, ghostAt, replayCar, trafficOverlap, sectorDistances, originalCars, carFamily, configureCar, bodyPanels, bodySectionShape, tailPartPose, tailPipe, rotateTailPoint, parts, equippedParts, ownsPart, buyPart, equipPart, requiredCar, sceneryShade, flameCue };
+  Kart.createQuickDrive = createQuickDrive;
   if (typeof module !== 'undefined') module.exports = Kart;
   else root.Kart = Kart;
 })(globalThis);

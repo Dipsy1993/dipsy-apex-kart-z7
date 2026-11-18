@@ -474,7 +474,7 @@
       if (race.drifting || race.offroad) {
         const tick=race.elapsed*13;
         const intensity=race.offroad?1:clamp(Math.abs(race.slip)*3.65,0,1)*(!race.driftDirection||race.driftDirection*race.steer<-.08?.42:1);
-        for (let i = 1; i <= 10; i++) {
+        for (let i = 1; i <= (low?6:10); i++) {
           const phase = wrap(tick + i * 1.71, 8) / 8;
           const x = sx + ((i%2?-.94:.94)+Math.sin(i*13)*phase*.26)*scale-race.lateral*phase*scale*.32;
           const y = sy + phase * scale * 0.63;

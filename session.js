@@ -103,7 +103,31 @@
     };
   }
 
-  const api={createRaceClock,createSaveStore,resumeAudio,resolveDriveInput,createFrameStats};
+  function createRenderCadence() {
+    let dueAt=-Infinity, previousRate=0;
+    return {
+      reset() {dueAt=-Infinity;previousRate=0;},
+      due(now, rate) {
+        const interval=1000/rate;
+        if(previousRate!==rate) {
+          dueAt=now;
+          previousRate=rate;
+        }
+        if(now+1.5<dueAt) return false;
+        dueAt=now-dueAt>interval?now+interval:dueAt+interval;
+        return true;
+      },
+    };
+  }
+
+  function boostButtonState(race) {
+    if(race.boost>0) return 'active';
+    if(race.boostQueue>0) return 'queued';
+    if(race.tanks>0) return 'ready';
+    return race.drifting&&race.driftDirection&&!race.offroad?'charge':'empty';
+  }
+
+  const api={createRaceClock,createSaveStore,resumeAudio,resolveDriveInput,createFrameStats,createRenderCadence,boostButtonState};
   if(typeof module==='object') module.exports=api;
   else root.KartSession=api;
 })(globalThis);

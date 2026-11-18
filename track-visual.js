@@ -210,7 +210,8 @@
     let heading = 0;
     let worldX = 0;
     let depth = -offset;
-    for (let i = 1; i <= 86; i++) {
+    const samples=preview||!low?86:70;
+    for (let i = 1; i <= samples; i++) {
       const travel = i * interval - offset;
       const section = roadAt(track, origin + i * interval);
       if (travel > anchor) heading = clamp(heading + section.curve * .00335 * Math.min(interval, travel - anchor), -1.23, 1.23);
@@ -386,8 +387,9 @@
         const bridge = a.bridge > .18;
         const shoulder = a.rail/a.width;
         const meters=wrap(origin+(i+1)*interval,track.length);
-        const cue=trackVisualCue(track,meters);
-        const markedCorner=cornerWeight(cupCourses[track.id],meters)>.22;
+        const detail=!low||a.z<140;
+        const cue=detail?trackVisualCue(track,meters):null;
+        const markedCorner=detail&&cornerWeight(cupCourses[track.id],meters)>.22;
         const bridgeEntry=track.id==='coast'&&a.bridge>.015&&a.bridge<.99&&b.bridge>=a.bridge;
         const farShoulder=b.rail/b.width;
         const left=Math.min(a.x-a.half*shoulder,b.x-b.half*farShoulder);
@@ -468,7 +470,7 @@
             if(markedCorner&&wrap(a.index,5)!==0) band(ctx,a,b,side*.97-.02,side*.97+.02,'#34323866',.035);
           }
           const rail=side*shoulder, farRail=side*farShoulder;
-          if (wrap(a.index, 2) === 0) {
+          if (wrap(a.index, detail?2:4) === 0) {
             const [x, y] = cross(a, rail+side*.020);
             ctx.fillStyle = palette.rail[0];
             ctx.fillRect(x - a.unit * .046, y - a.unit * .88, a.unit * .12, a.unit * .88);

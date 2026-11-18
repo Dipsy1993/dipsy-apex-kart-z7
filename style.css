@@ -277,3 +277,104 @@ body[data-race-viewport=portrait] .race-tag b,
 body[data-race-viewport=portrait] .race-time b{font-size:20px}
 body[data-race-viewport=portrait] .race-map{width:84px;height:53px}
 body[data-race-viewport=portrait] .touch-controls>div{gap:5px}
+
+@media(pointer:coarse),(max-width:650px){
+  #garage-page .section-heading{flex-wrap:wrap;align-items:end}
+  #garage-page .heading-actions{display:flex;flex-wrap:wrap;justify-content:start;gap:6px}
+  #quick-drive{order:-1;min-height:44px}
+  #track-page{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .track-footer{
+    position:fixed;
+    z-index:4;
+    bottom:max(8px,env(safe-area-inset-bottom));
+    left:max(12px,env(safe-area-inset-left));
+    right:max(12px,env(safe-area-inset-right));
+    margin:0;
+    padding:8px 10px;
+    box-shadow:0 3px 15px #0009;
+  }
+  .track-footer .primary{min-height:44px;flex:none}
+  .track-footer p{overflow-wrap:anywhere}
+  .touch-controls .drive-actions{
+    display:grid;
+    grid-template-columns:var(--pedal-width) calc(var(--pedal-width) + 12px);
+    align-items:end;
+  }
+  .race-screen[data-throttle=manual] .drive-actions{grid-template-columns:var(--pedal-width) calc(var(--pedal-width) + 12px) var(--pedal-width)}
+  .drive-actions [data-key=ArrowDown]{grid-area:2 / 1}
+  .drive-actions .drift-pedal{grid-area:2 / 2;width:100%}
+  .drive-actions .gas{grid-area:2 / 3}
+  #boost-pedal{
+    grid-area:1 / 1;
+    width:100%;
+    min-height:44px;
+    height:44px;
+    align-content:center;
+    gap:2px;
+    line-height:1;
+  }
+  #boost-pedal small{font-size:9px;color:#cadbea;white-space:nowrap}
+  #boost-pedal[data-state=ready]{border-color:#8ae9ff;color:#b8f1ff;background:#15384c}
+  #boost-pedal[data-state=queued]{border-color:#ffe398;color:#fff0b0;background:#493e23}
+  #boost-pedal[data-state=active]{border-color:#cfff87;color:#e6ffb8;background:#2d4d23}
+  #boost-pedal.held{border-color:#efffba;background:var(--acid);color:#19200f}
+  #boost-pedal.held small{color:#19200f}
+  .race-bottom .speed{background:#0b152192;box-shadow:none;padding:4px 5px}
+  .race-bottom .speed b{font-size:clamp(24px,5vw,31px)}
+  .race-screen[data-throttle=auto] .speed{max-width:calc(var(--pedal-width) + 12px)}
+  .race-screen[data-throttle=auto] .speed span{display:block;margin:0}
+  .race-bottom .speed{pointer-events:none}
+  body[data-race-viewport] dialog[open][data-kind=pause]{
+    display:flex;
+    padding:12px;
+    overflow:hidden;
+  }
+  body[data-race-viewport] dialog[data-kind=pause] #dialog-content{display:flex;flex-direction:column;min-height:0;width:100%}
+  body[data-race-viewport] dialog[data-kind=pause] h2{flex:none;font-size:20px;margin:0 0 6px}
+  .pause-details{min-height:0;overflow:auto;overscroll-behavior:contain}
+  .pause-details .dialog-actions{margin-top:8px}
+  .pause-resume{flex:none;margin-top:7px}
+  .pause-resume .primary{min-height:44px}
+  body[data-race-viewport] .performance-panel{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:2px 9px;
+    margin:5px 0;
+    padding:5px 7px;
+    align-items:center;
+  }
+  body[data-race-viewport] .performance-panel h3{font-size:11px;margin:0}
+  body[data-race-viewport] .performance-panel p{font-size:10px;margin:0}
+  body[data-race-viewport] .performance-panel dl{grid-column:1 / -1;margin:0}
+  body[data-race-viewport] .performance-panel dl div{display:flex;align-items:baseline;gap:5px;border:0;padding:2px 0}
+  body[data-race-viewport] .performance-panel dd{font-size:13px}
+}
+
+body[data-race-viewport=landscape] .race-top{
+  left:50%;
+  right:auto;
+  transform:translateX(-50%);
+  display:flex;
+  width:max-content;
+  max-width:calc(100% - 30px);
+  padding-left:8px;
+  gap:9px;
+  border-radius:8px;
+  background:#111b2dc2;
+  align-items:center;
+}
+body[data-race-viewport=landscape] .race-top .race-tag,
+body[data-race-viewport=landscape] .race-top .race-time{
+  position:static;
+  transform:none;
+  padding:2px;
+  border:0;
+  box-shadow:none;
+  background:none;
+  white-space:nowrap;
+}
+body[data-race-viewport=landscape] .race-top small{display:none}
+body[data-race-viewport=landscape] .race-top b{font-size:17px}
+body[data-race-viewport=landscape] .race-top .position{margin:0}
+body[data-race-viewport=landscape] .race-map{width:88px;height:52px}
+body[data-race-viewport=landscape] .race-message{top:60%;font-size:clamp(13px,2.6vw,18px)}

@@ -8,15 +8,15 @@
   <meta name="description" content="弯道研究所，原创街机卡丁车游戏。挑选赛车，在六条赛道上漂移、攒氮气，刷新圈速。">
   <title>弯道研究所 · Z7 满金币试玩</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css">
-  <script defer src="kart.js"></script>
-  <script defer src="track-visual.js"></script>
-  <script defer src="scene.js"></script>
-  <script defer src="render.js"></script>
+  <link rel="stylesheet" href="style.css?v=9">
+  <script defer src="kart.js?v=9"></script>
+  <script defer src="track-visual.js?v=9"></script>
+  <script defer src="scene.js?v=9"></script>
+  <script defer src="render.js?v=9"></script>
   <script defer src="music.js"></script>
-  <script defer src="session.js"></script>
-  <script defer src="playtest.js"></script>
-  <script defer src="game.js"></script>
+  <script defer src="session.js?v=9"></script>
+  <script defer src="playtest.js?v=9"></script>
+  <script defer src="game.js?v=9"></script>
 </head>
 <body data-frame-build="after">
   <div id="garage">
@@ -33,7 +33,7 @@
       <section id="garage-page" aria-labelledby="garage-title">
         <div class="section-heading">
           <div><p class="eyebrow"><i></i> GARAGE</p><h1 id="garage-title">赛车车库</h1><p id="offline-status" class="small-note" role="status">正在准备离线游玩…</p></div>
-          <div class="heading-actions"><button class="secondary" id="full-play" hidden>全屏游玩</button><button class="secondary" id="training">新手训练</button><button class="primary heading-action" id="quick-race">选择赛道 <span aria-hidden="true">↗</span></button></div>
+          <div class="heading-actions"><button class="secondary" id="full-play" hidden>全屏游玩</button><button class="secondary" id="training">新手训练</button><button class="secondary" id="quick-race">选择赛道</button><button class="primary heading-action" id="quick-drive" type="button">直接开跑 <span aria-hidden="true">↗</span></button></div>
         </div>
         <div class="showroom">
           <div class="stage" id="stage">
@@ -120,7 +120,7 @@
     </div>
     <div class="touch-controls" aria-label="触屏操作">
       <div class="drive-steering"><button data-key="ArrowLeft" aria-label="向左"><i aria-hidden="true"></i></button><button data-key="ArrowRight" aria-label="向右"><i aria-hidden="true"></i></button></div>
-      <div class="drive-actions"><button data-key="ArrowDown">刹车</button><button data-key="Space">氮气</button><button class="drift-pedal" data-key="ShiftLeft">漂移</button><button class="gas" data-key="ArrowUp">油门</button></div>
+      <div class="drive-actions"><button data-key="ArrowDown">刹车</button><button id="boost-pedal" data-key="Space" aria-label="氮气"><span>氮气</span><small id="boost-pedal-state"></small></button><button class="drift-pedal" data-key="ShiftLeft">漂移</button><button class="gas" data-key="ArrowUp">油门</button></div>
     </div>
   </section>
 

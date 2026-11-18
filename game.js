@@ -11,6 +11,7 @@
   let pendingFinish=null;
   const raceClock=KartSession.createRaceClock();
   const frameStats=KartSession.createFrameStats();
+  const renderCadence=KartSession.createRenderCadence();
   let frameRenderer;
   const saveMessages={
     damaged:'本地存档无法读取。已保留原文件，可先试驾。恢复有效存档后再购买或保存成绩。',
@@ -58,6 +59,7 @@
   let tailTarget=0;
   let comparisonCar=null;
   let comparisonRun=null;
+  let quickDrive=false;
   let sectorPractice=null;
   let cupRun=null;
   let cupPractice=null;
@@ -101,7 +103,6 @@
   let prevCount = 4;
   let last = 0;
   let lastMap=-1;
-  let lastRaceRender=-Infinity;
   let lastRaceHud=-Infinity;
   let framePending=false;
   let resumeRequested=false;
@@ -115,6 +116,9 @@
   const compactRace=matchMedia('(max-height: 500px) and (orientation: landscape)');
   const keys = new Set();
   const touches = new Map();
+  let pendingTouchBoost=false;
+  const boostPedal=$('boost-pedal');
+  const boostLabels={empty:'待蓄气',charge:'蓄气中',ready:'可释放',queued:'已排队',active:'喷射中'};
   let raceViewport;
   let viewportFrame=0;
   let viewportSettle=0;
@@ -482,6 +486,7 @@
 
   function clearKeys() {
     keys.clear();
+    pendingTouchBoost=false;
     for (const button of document.querySelectorAll('.touch-controls .held')) button.classList.remove('held');
     touches.clear();
   }
@@ -535,10 +540,11 @@
 
   function showDialog(kind, html) {
     dialogKind = kind;
+    dialog.dataset.kind=kind;
     $('dialog-content').innerHTML = html;
     updateMusicMenu();
     if (!dialog.open) dialog.showModal();
-    $('dialog-content').querySelector('.primary')?.focus();
+    $('dialog-content').querySelector('.primary')?.focus({preventScroll:true});
   }
 
   function startRace() {
@@ -551,18 +557,19 @@
       sectorPractice?Kart.createSectorPractice(sectorPractice.completed,sectorPractice.index,sectorPractice.reference,sectorPractice.factory):
       cupRun?Kart.createCupRace(cupRun,Kart.equippedParts(save,cupRun.carId)):
       run ? Kart.createWorkshopTrial(run.id,run.parts,comparisonRun.courseId) :
+      quickDrive ? Kart.createQuickDrive(model,Kart.equippedParts(save,model)) :
       Kart.createRace(model, trialCar||lesson ? 'sunset' : trackId, trialCar||lesson ? 'solo' : mode,lesson?{}:trialCar?.parts??Kart.equippedParts(save,model),save.difficulty);
     if(lesson&&lesson!=='draft') {
       const drill=lessons[lesson];
       Object.assign(race,{distance:drill.start,speed:drill.speed,tanks:drill.tanks,laps:1,lessonPassed:false,braked:false,caught:false,
         trial:{start:drill.start,end:drill.end,nitro:null,drift:null,curb:null,curbEntry:null}});
     }
-    if (!cupPractice && !sectorPractice && !comparisonRun && !trialCar && !lesson && race.mode==='solo') Kart.startTimeTrial(race,save);
+    if (!quickDrive && !cupPractice && !sectorPractice && !comparisonRun && !trialCar && !lesson && race.mode==='solo') Kart.startTimeTrial(race,save);
     clearKeys();
     paused = false;
     raceClock.reset();
     frameStats.reset();
-    lastRaceRender=-Infinity;
+    renderCadence.reset();
     lastRaceHud=-Infinity;
     resumeRequested=false;
     lastMap=-1;
@@ -587,6 +594,7 @@
     clearKeys();
     race = null;
     trialCar = null;
+    quickDrive=false;
     lesson=null;
     comparisonRun=null;
     sectorPractice=null;
@@ -637,12 +645,20 @@
     engineSound();
     const quality=qualityLabels[raceScreen.dataset.quality];
     const throttle=touchDevice.matches?`<button class="secondary" data-action="throttle">油门 · ${autoThrottle()?'自动':'手动'}</button>`:'';
-    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2>${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${performancePanel()}<details class="pause-music"><summary>背景音乐设置</summary>${musicPicker()}</details><div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button><button class="primary" data-action="resume">继续比赛</button></div>`);
+    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2><div class="pause-details">${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${performancePanel()}<details class="pause-music"><summary>背景音乐设置</summary>${musicPicker()}</details><div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button></div></div><div class="dialog-actions pause-resume"><button class="primary" data-action="resume">继续比赛</button></div>`);
   }
 
   function finishRace() {
     updateMusic();
     engineSound();
+    if(quickDrive) {
+      clearKeys();
+      const drift=(race.trial.drift??0)>0;
+      const boost=race.boostCount>0;
+      const tip=!drift?'下次入弯时，方向和漂移一起按住。':!boost?'下次出弯时，松开漂移，车身回正后按氮气。':'完整比赛里，靠漂移蓄出下一管氮气。';
+      showDialog('finish',`<h2 id="dialog-title">快速试驾完成</h2><p>落日峡谷 · ${timeText(race.elapsed)}</p><dl><div><dt>漂移蓄气</dt><dd>${drift?`${Math.round(race.trial.drift*100)}%`:'未触发'}</dd></div><div><dt>氮气释放</dt><dd>${boost?'已完成':'未触发'}</dd></div></dl><p>${tip}</p><div class="dialog-actions"><button class="secondary" data-action="garage">返回车库</button><button class="secondary" data-action="retry">再跑一次</button><button class="primary" data-action="quick-full">完整比赛</button></div>`);
+      return;
+    }
     if(race.cup) {clearKeys();void saveCupStation();return;}
     if(cupPractice) {clearKeys();showCupPractice();return;}
     if(sectorPractice) {clearKeys();showSectorPractice();return;}
@@ -969,7 +985,7 @@
     const lap = Math.min(race.laps, Math.floor(race.distance / race.track.length) + 1);
     $('lap').textContent = `${lap} / ${race.laps}`;
     $('timer').textContent = timeText(race.elapsed);
-    $('place').textContent = cupPractice?'练习':sectorPractice?'重练':lesson?'训练':comparisonRun ? (comparisonRun.courseId?race.car.tier:(comparisonRun.index?'试驾 B':'试驾 A')) : trialCar ? '试驾' : race.mode === 'solo' ? '计时' : race.place;
+    $('place').textContent = cupPractice?'练习':sectorPractice?'重练':lesson?'训练':comparisonRun ? (comparisonRun.courseId?race.car.tier:(comparisonRun.index?'试驾 B':'试驾 A')) : quickDrive||trialCar ? '试驾' : race.mode === 'solo' ? '计时' : race.place;
     $('place-total').textContent = lesson||race.mode==='solo'?'':`/ ${race.opponents.length+1}`;
     $('speed').textContent = String(Math.round(race.speed * 3)).padStart(3, '0');
     $('tanks').textContent = `${race.tanks >= 1 ? '◆' : '◇'} ${race.tanks >= 2 ? '◆' : '◇'}`;
@@ -994,19 +1010,36 @@
       }
     }
     $('tanks').classList.toggle('tank-ready',nitroReadyTime>0);
+    const boostState=KartSession.boostButtonState(race);
+    if(boostPedal.dataset.state!==boostState) {
+      boostPedal.dataset.state=boostState;
+      $('boost-pedal-state').textContent=boostLabels[boostState];
+      boostPedal.setAttribute('aria-label',`氮气 · ${boostLabels[boostState]}`);
+    }
     raceScreen.dataset.boost=race.boost>0?'active':'idle';
     const start=race.trial?.start??0;
     const end=race.trial?.end??race.track.length*race.laps;
     $('race-progress').style.width = `${(race.distance-start)/(end-start)*100}%`;
     const hint=$('trial-hint');
-    hint.hidden=!race.trial;
-    if(race.trial) {
+    if(quickDrive) {
+      const mobile=touchDevice.matches;
+      let text='';
+      if(race.phase==='racing'&&race.distance>=304&&race.distance<730&&!race.boostCount&&!race.boostQueue) {
+        const exiting=race.distance>=505||(race.trial.drift??0)>.01;
+        text=exiting
+          ? (mobile?'出弯 · 松漂移，回正后点氮气':'出弯 · 松开 Shift，回正后按空格')
+          : (mobile?'入弯 · 方向和漂移一起按':'入弯 · 转向并按住 Shift');
+      }
+      hint.hidden=!text;
+      if(hint.textContent!==text) hint.textContent=text;
+    } else if(race.trial) {
+      hint.hidden=false;
       const stage=cupPractice?(cupPractice.line==='inside'?'内线 · 靠近路肩，提前减速':'外线 · 从弯外切入，留空间回正给油'):
         sectorPractice?`${sectorName(race.trial.sector)} · ${race.distance<race.trial.line?'接近计时起点':
         race.distance<race.trial.speedGates[0]?'接近取样弯':race.distance<race.trial.speedGates[1]?'正在测过弯速度':'驶向分段终点'}`:
         race.trial.course?workshopHint(race.trial,race.distance):race.distance<160?'起步直道 · 释放氮气':race.distance<325?'右弯 · 漂移集气':race.distance<500?'右侧路肩 · 轻压红白路沿':'驶向短段终点';
       hint.textContent=lesson?(race.lessonPassed?'动作达标，驶过终点':lessons[lesson].help):`${stage} · 剩 ${Math.round(end-race.distance)} 米`;
-    }
+    } else hint.hidden=true;
     $('countdown').textContent = race.phase === 'countdown' ? Math.ceil(race.countdown) : race.elapsed < .65 && race.phase !== 'finished' ? 'GO!' : '';
     const driftStatus = !race.driftDirection ? '车身回正' : race.steer * race.driftDirection < -.08 ? '反打收尾' : '漂移蓄气';
     const contact=race.railHit>.15?'rail':race.hit>.11?'kart':race.surface==='curb'?'curb':'';
@@ -1047,6 +1080,10 @@
     const wakeLaunch=race.wake?.launches??0;
     const wakePass=race.wake?.passes??0;
     const input=KartSession.resolveDriveInput(keys,touches,autoThrottle());
+    if(pendingTouchBoost) {
+      input.boost=true;
+      if(race.phase==='racing') pendingTouchBoost=false;
+    }
     const previousDrift=race.driftDirection;
     Kart.update(race,input,dt);
     if(lesson==='brake'&&input.brake&&race.speed<=65&&race.distance<770) race.braked=true;
@@ -1111,9 +1148,8 @@
         const canvas=$('race-canvas');
         const quality=raceScreen.dataset.quality;
         const mobile=touchDevice.matches;
-        const interval=1000/(quality==='low'||quality==='balanced'&&canvas.dataset.renderer==='canvas'?30:60);
-        if(!mobile||now-lastRaceRender>=interval-.75||race.phase==='finished') {
-          lastRaceRender=mobile?Math.max(now-interval*.25,Math.min(now,lastRaceRender+interval)):now;
+        const rate=quality==='low'||quality==='balanced'&&canvas.dataset.renderer==='canvas'?30:60;
+        if(!mobile||renderCadence.due(now,rate)||race.phase==='finished') {
           if(!mobile||now-lastRaceHud>=32||race.phase==='finished') {
             lastRaceHud=now;
             renderHud();
@@ -1178,6 +1214,10 @@
     showDialog('fullscreen','<h2 id="dialog-title">全屏游玩</h2><ol><li>在 Safari 点「共享」，选择「添加到主屏幕」。</li><li>如果看到「作为网页 App 打开」，请开启它。</li><li>回到主屏幕，点《弯道研究所》图标进入。</li></ol><div class="dialog-actions"><button class="primary" data-action="close">知道了</button></div>');
   };
   $('start-race').onclick = ()=>mode==='cup'?showCup():startRace();
+  $('quick-drive').onclick=()=>{
+    quickDrive=true;
+    startRace();
+  };
   $('test-drive').onclick = () => { trialCar={id:inspected,parts:{...previewParts}}; startRace(); };
   $('compare-drive').onclick=()=>{
     const before=Kart.configureCar(comparison==='factory'?inspected:comparison);
@@ -1330,6 +1370,13 @@
     if(drill&&Object.hasOwn(lessons,drill)) {lesson=drill;startRace();return;}
     if(action==='training-menu') {leaveRace('garage-page');showTraining();return;}
     if(action==='training-race') {dialog.close();mode='race';switchPage('track-page',true);return;}
+    if(action==='quick-full'&&quickDrive) {
+      leaveRace('track-page');
+      trackId='sunset';
+      mode='race';
+      startRace();
+      return;
+    }
     if(action==='cup-start') {void startCup();return;}
     if(action==='cup-save') {void saveCupStation();return;}
     if(action==='cup-practice') {
@@ -1416,7 +1463,7 @@
       paused=false;
       raceClock.reset();
       frameStats.reset();
-      lastRaceRender=-Infinity;
+      renderCadence.reset();
       if(!resumeRequested&&!document.hidden) KartSession.resumeAudio(audio);
       resumeRequested=false;
       queueFrame();
@@ -1488,6 +1535,7 @@
       if(paused||!race||race.phase==='finished') return;
       button.setPointerCapture(event.pointerId);
       touches.set(event.pointerId, button.dataset.key);
+      if(button===boostPedal&&race.phase==='racing') pendingTouchBoost=true;
       showHeld();
     };
     if(steering.includes(button)) {
@@ -1500,6 +1548,16 @@
           touches.set(event.pointerId,next);
           showHeld();
         }
+      };
+    }
+    if(button.dataset.key==='ShiftLeft') {
+      button.onpointermove=event=>{
+        if(touches.get(event.pointerId)!=='ShiftLeft') return;
+        const target=boostPedal.getBoundingClientRect();
+        if(event.clientX<target.left||event.clientX>target.right||event.clientY<target.top||event.clientY>target.bottom) return;
+        touches.set(event.pointerId,'Space');
+        if(race?.phase==='racing') pendingTouchBoost=true;
+        showHeld();
       };
     }
     const release = event => {
@@ -1527,7 +1585,7 @@
   compactRace.addEventListener('change',()=>{
     clearKeys();
     frameStats.reset();
-    lastRaceRender=-Infinity;
+    renderCadence.reset();
   });
   renderCredits();
   showSaveStatus(saveMessages[startup.status]??'');
