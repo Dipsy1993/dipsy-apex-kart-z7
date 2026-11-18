@@ -115,6 +115,8 @@
   const compactRace=matchMedia('(max-height: 500px) and (orientation: landscape)');
   const keys = new Set();
   const touches = new Map();
+  let raceViewport;
+  let viewportFrame=0;
   const carGrid = $('car-grid');
   const trackGrid = $('track-grid');
   const dialog = $('dialog');
@@ -483,6 +485,48 @@
     touches.clear();
   }
 
+  function syncRaceViewport() {
+    const visible=window.visualViewport;
+    if(!touchDevice.matches||!race||raceScreen.hidden||!visible) {
+      delete document.body.dataset.raceViewport;
+      raceViewport=null;
+      return;
+    }
+    const zoom=visible.scale||1;
+    const width=Math.round(visible.width*zoom);
+    const height=Math.round(visible.height*zoom);
+    if(!width||!height) return;
+    const left=visible.offsetLeft;
+    const top=visible.offsetTop;
+    const layout=width>height?'landscape':'portrait';
+    const signature=`${width}:${height}:${zoom}:${left}:${top}`;
+    if(raceViewport?.signature===signature) return;
+    const rotated=raceViewport&&raceViewport.layout!==layout;
+    raceViewport={signature,layout};
+    document.body.dataset.raceViewport=layout;
+    const css=document.body.style;
+    css.setProperty('--race-width',`${width}px`);
+    css.setProperty('--race-height',`${height}px`);
+    css.setProperty('--race-left',`${left}px`);
+    css.setProperty('--race-top',`${top}px`);
+    css.setProperty('--race-center-x',`${left+visible.width/2}px`);
+    css.setProperty('--race-center-y',`${top+visible.height/2}px`);
+    css.setProperty('--race-unzoom',1/zoom);
+    if(rotated) {
+      clearKeys();
+      frameStats.reset();
+      if(race.phase==='racing'&&!paused) pauseRace('屏幕方向已切换，点继续比赛。');
+    }
+  }
+
+  function queueRaceViewport() {
+    if(!race||viewportFrame) return;
+    viewportFrame=requestAnimationFrame(()=>{
+      viewportFrame=0;
+      syncRaceViewport();
+    });
+  }
+
   function showDialog(kind, html) {
     dialogKind = kind;
     $('dialog-content').innerHTML = html;
@@ -522,9 +566,10 @@
     nitroReadyTime = 0;
     $('garage').hidden = true;
     $('race-screen').hidden = false;
+    syncRaceViewport();
     $('race-track').textContent = race.cup?`第 ${race.cup.station+1} 站 · ${race.track.name}`:race.track.name;
     $('place-label').textContent = lesson||race.mode==='solo'?'模式':'名次';
-    $('pause').focus({ preventScroll: true });
+    if(!touchDevice.matches) $('pause').focus({ preventScroll: true });
     audioStart();
     renderHud();
     KartRender.raceFrame($('race-canvas'), race);
@@ -545,6 +590,7 @@
     updateMusic();
     if (dialog.open) dialog.close();
     $('race-screen').hidden = true;
+    syncRaceViewport();
     $('garage').hidden = false;
     renderCredits();
     switchPage(returnToWorkshop?'garage-page':target, !returnToWorkshop);
@@ -1406,20 +1452,51 @@
     renderCredits();
     if(!race) (page==='garage-page'?renderCar:renderTrack)();
   });
-  for(const type of ['contextmenu','selectstart']) {
+  for(const type of ['contextmenu','selectstart','dblclick']) {
     raceScreen.addEventListener(type,event=>event.preventDefault());
   }
-  raceScreen.querySelectorAll('[data-key]').forEach(button => {
+  for(const type of ['gesturestart','gesturechange','gestureend']) {
+    document.addEventListener(type,event=>{
+      if(race&&!dialog.open&&event.cancelable) event.preventDefault();
+    },{passive:false});
+  }
+  raceScreen.addEventListener('touchmove',event=>{
+    if(event.touches.length>1&&event.cancelable) event.preventDefault();
+  },{passive:false});
+  window.addEventListener('resize',queueRaceViewport);
+  window.visualViewport?.addEventListener('resize',queueRaceViewport);
+  window.visualViewport?.addEventListener('scroll',queueRaceViewport);
+  touchDevice.addEventListener('change',queueRaceViewport);
+
+  const pedals=[...raceScreen.querySelectorAll('[data-key]')];
+  const steering=[raceScreen.querySelector('[data-key=ArrowLeft]'),raceScreen.querySelector('[data-key=ArrowRight]')];
+  const showHeld=()=>{
+    const held=new Set(touches.values());
+    for(const pedal of pedals) pedal.classList.toggle('held',held.has(pedal.dataset.key));
+  };
+  pedals.forEach(button => {
     button.onpointerdown = event => {
       event.preventDefault();
       if(paused||!race||race.phase==='finished') return;
       button.setPointerCapture(event.pointerId);
       touches.set(event.pointerId, button.dataset.key);
-      button.classList.add('held');
+      showHeld();
     };
+    if(steering.includes(button)) {
+      button.onpointermove=event=>{
+        if(!touches.has(event.pointerId)) return;
+        const middle=(steering[0].getBoundingClientRect().right+steering[1].getBoundingClientRect().left)/2;
+        const previous=touches.get(event.pointerId);
+        const next=event.clientX<middle-3?'ArrowLeft':event.clientX>middle+3?'ArrowRight':previous;
+        if(next!==previous) {
+          touches.set(event.pointerId,next);
+          showHeld();
+        }
+      };
+    }
     const release = event => {
       touches.delete(event.pointerId);
-      button.classList.toggle('held', [...touches.values()].includes(button.dataset.key));
+      showHeld();
     };
     button.onlostpointercapture=release;
     button.onpointercancel=release;

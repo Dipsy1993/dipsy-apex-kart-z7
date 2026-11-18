@@ -196,7 +196,8 @@
     const origin = distance - offset - anchor;
     const fx = Math.min(w * 1.08, h * (preview?.96:1.38));
     const fy = h * .84;
-    const horizon = h * (preview ? .50 : .442) + sample.grade * h * .53;
+    const portrait=!preview&&w<h;
+    const horizon=h*(preview?.50:portrait?.40:.442)+sample.grade*h*.53;
     const cameraY = sample.elevation + (preview ? 6.3 : 8.2);
     backdrop(ctx, w, h, horizon, track,distance);
     let pattern = patterns.get(ctx);
@@ -220,7 +221,7 @@
       const nominal = HALF_ROAD * fx / z;
       points.push({
         ...section,
-        x: w / 2 + worldX * fx / z - driverX * nominal * .75,
+        x: w / 2 + worldX * fx / z - driverX * nominal * (portrait?.90:.75),
         y: horizon + (cameraY - section.elevation) * unit,
         half: nominal * section.width, nominal, unit, roll: -section.bank * unit * HALF_ROAD * section.width,
         z, travel, index: Math.floor(origin / interval) + i,

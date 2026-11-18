@@ -4,7 +4,7 @@
   const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 
   function surface(canvas, quality='high') {
-    const { width, height } = canvas.getBoundingClientRect();
+    const width=canvas.clientWidth,height=canvas.clientHeight;
     if (!width || !height) return null;
     const ratio = Math.min(quality==='low'?.78:quality==='balanced'?1.22:1.8,window.devicePixelRatio || 1);
     const pixels = [Math.round(width * ratio), Math.round(height * ratio)];
@@ -427,7 +427,8 @@
     const playerZ = 19;
     const player = road.pointAt(playerZ);
     const sx = player.x + race.x * player.half;
-    const sy = player.y + race.x * player.roll;
+    const projectedY=player.y+race.x*player.roll;
+    const sy=w<h?Math.min(projectedY,h*.80):projectedY;
     // Match the horizontal road projection so adjacent lanes don't visually overlap.
     const scale = Math.min(w*.074,h*.082,player.half/Kart.HALF_ROAD);
     const guide=Kart.wakeGuide(race);

@@ -238,3 +238,42 @@ dialog{width:min(470px,calc(100% - 28px));max-height:calc(100% - 28px);color:var
   font-size:13px;
   cursor:pointer;
 }
+
+body[data-race-viewport]{
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+body[data-race-viewport] .race-screen{
+  inset:var(--race-top) auto auto var(--race-left);
+  width:var(--race-width);
+  height:var(--race-height);
+  transform:scale(var(--race-unzoom));
+  transform-origin:top left;
+}
+body[data-race-viewport] dialog{
+  position:fixed;
+  inset:var(--race-center-y) auto auto var(--race-center-x);
+  margin:0;
+  width:min(470px,calc(var(--race-width) - 24px));
+  max-height:calc(var(--race-height) - 20px);
+  transform:translate(-50%,-50%) scale(var(--race-unzoom));
+}
+body[data-race-viewport] .race-progress{display:none}
+body[data-race-viewport=portrait] .race-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto auto;
+  gap:6px;
+}
+body[data-race-viewport=portrait] .race-tag small{
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+body[data-race-viewport=portrait] .race-time{
+  position:static;
+  transform:none;
+}
+body[data-race-viewport=portrait] .race-tag b,
+body[data-race-viewport=portrait] .race-time b{font-size:20px}
+body[data-race-viewport=portrait] .race-map{width:84px;height:53px}
+body[data-race-viewport=portrait] .touch-controls>div{gap:5px}
