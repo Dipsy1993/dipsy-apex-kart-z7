@@ -21,11 +21,16 @@
     {id:'ice',name:'冰牙绝壁',code:'FROSTLINE',level:'大师',tip:'窄道冰面 · 刹车距离更长',length:2890,color:'#95e9fb',
       sky:['#4277a4','#d0e9ef'],challenge:{preview:.365,width:1.01,margin:.22,corner:.93,sectors:[.26,.48,.76,1],
         sections:[[.32,.43,.32,.23],[.64,.76,.28,.19]],landmarks:[[.24,'ice'],[.36,'ice'],[.67,'ice'],[.75,'ice']]}},
+    {id:'zootopia',name:'动物城·热力追踪',code:'ZOOTOPIA HOT PURSUIT',level:'专家',
+      tip:'冰川镇 · 撒哈拉广场 · 雨林区 · 全城追捕',length:3480,color:'#ffb45e',
+      sky:['#111b3a','#7f4f78','#ffb27c'],road:['#2b3042','#343a50'],ground:['#35454f','#40525a'],
+      bends:[0,.9,1.45,.55,-.55,-1.45,-.9,.65,1.6,-.45,-1.5,-.85,.6,1.35,.35,-.75,0]},
   ];
   const trackLandmarks={
     city:{offices:.623,service:.693,interchange:.867},
     sunset:{strata:.079,arch:.113},
     coast:{headland:.265,bridgeMouth:.355,bridgeFirst:.407,bridgeLast:.526},
+    zootopia:{offices:.72,service:.93,interchange:.955},
   };
   const courseLighting={
     city:{
@@ -43,6 +48,13 @@
       start:630,end:1336,zones:[[980,'bridge'],[804,'bridge-mouth']],
       lamps:[{from:804,to:970,spacing:20,warm:true},{from:988,to:1108,spacing:25,warm:false}],
       signs:[[675,728,1],[861,944,1]],
+    },
+    zootopia:{
+      start:120,end:3380,zones:[[120,'savanna'],[540,'tundra'],[1160,'sahara'],[1900,'rainforest'],[2560,'rodentia'],[2900,'skyline']],
+      lamps:[{from:150,to:560,spacing:34,warm:true},{from:650,to:1180,spacing:42,warm:true},
+        {from:1220,to:1560,spacing:30,warm:false},{from:1700,to:2200,spacing:26,warm:false},
+        {from:2280,to:2620,spacing:22,warm:true},{from:2700,to:3260,spacing:36,warm:false}],
+      signs:[[340,430,1],[820,930,-1],[1380,1480,1],[1960,2070,-1],[2520,2630,1],[3020,3140,-1]],
     },
   };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -75,6 +87,40 @@
   const originalCars=cars.slice();
   const legacyCars=new Map(originalCars.map(car=>[car.id,{...car}]));
   const tiers=['C1','E2','G3','R4','PRO','SR','Z7'];
+  const tierColors={C1:'#c9f74b',E2:'#ffac72',G3:'#59d8ff',R4:'#cba2ff',PRO:'#ff8796',SR:'#84f0ee',Z7:'#efba83'};
+  const classInfo={
+    C1:{name:'新秀',en:'CLUB',desc:'轻量入门 · 第一次漂移'},
+    E2:{name:'进阶',en:'EVO',desc:'第一套空力 · 更宽的轮距'},
+    G3:{name:'竞速',en:'GT',desc:'完整包围 · 街道竞速'},
+    R4:{name:'高性能',en:'RACE',desc:'长尾与尾翼 · 高速稳定'},
+    PRO:{name:'专业',en:'PRO',desc:'厂队规格 · 出弯牵引'},
+    SR:{name:'超跑',en:'SUPER',desc:'原型动力 · 氮气延伸'},
+    Z7:{name:'旗舰',en:'ZENITH',desc:'终极形态 · 主动空力'},
+  };
+  const familyInfo={
+    rookie:{name:'闪电',en:'BOLT',tag:'均衡 · 街道'},
+    rally:{name:'荒漠',en:'DUNE',tag:'拉力 · 抓地'},
+    wave:{name:'蓝潮',en:'TIDE',tag:'漂移 · 集气'},
+    nova:{name:'星核',en:'NOVA',tag:'极速 · 直道'},
+    falcon:{name:'赤隼',en:'FALCON',tag:'加速 · 出弯'},
+  };
+  const familyNames={
+    rookie:['小闪电','电光','雷纹','疾电','雷霆','闪电环','天穹'],
+    rally:['沙漠獾','沙暴','岩牙','荒原','獾王','巨岩','荒神'],
+    wave:['蓝潮','潮汐','浪刃','深流','涡流','深海','环翼'],
+    nova:['超新星','星尘','脉冲','星环','新星','星核','星冕'],
+    falcon:['赤隼','隼影','赤翼','猎风','隼王','天隼','赤霄'],
+  };
+  // [body paint, family accent]. The class color is applied to trim/rims
+  // separately so every model reads as "family × class".
+  const familyPalettes={
+    rookie:[['#d9ff5a','#f2ffd0'],['#c2f23a','#efffc0'],['#9ee32a','#e6ffd9'],['#c9f74b','#f7ffcf'],['#e6ff8a','#fffbe0'],['#d6ffd0','#b9ffe8'],['#f4ffbf','#bff7ff']],
+    rally:[['#ff9255','#ffe4ad'],['#ff7f3d','#ffe0c0'],['#e96a2f','#ffd4b0'],['#ffb066','#ffe8cc'],['#ff8a5c','#ffd9c2'],['#ffc38a','#fff0d9'],['#ffd7a8','#fff6e8']],
+    wave:[['#48d6ff','#b4f4ff'],['#32c2f0','#a8f0ff'],['#1fa8df','#8ceaff'],['#5fe0ff','#c8f8ff'],['#7de8ff','#d6fbff'],['#a8f4ff','#e6ffff'],['#1b4f8f','#73f6ff']],
+    nova:[['#be8fff','#f0d5ff'],['#a86ff0','#e6c8ff'],['#9a5ae0','#d9b0ff'],['#c99cff','#efd9ff'],['#d8b4ff','#f6e6ff'],['#e6cfff','#fff2ff'],['#4a2a78','#f2afff']],
+    falcon:[['#ff576c','#ffead2'],['#e8445a','#ffd9c0'],['#d9344f','#ffc8b8'],['#ff7080','#ffe0d0'],['#ff8a96','#ffe8da'],['#ffb0b8','#fff0e6'],['#7a1f34','#ffd08a']],
+  };
+
   const counts=[1,2,3,4,6,7,8];
   const bodyStyles={
     rookie:['裸露管架','包边车壳','双进气后肩','桥式尾翼','高翼与贯穿尾灯'],
@@ -149,7 +195,11 @@
       const design={title:bodyStyles[family][generation],rearWidth:rearWidths[base.body][generation],
         bodywork:bodyworkByFamily[family]?.[generation],
         rearZ:[-1.48,-1.59,-1.68,-1.73,-1.79][generation]};
+      const palette=familyPalettes[family]?.[generation]??[car.color,car.trim];
+      const paint=palette[0],accent=palette[1];
       Object.assign(car,{family,generation,tier:tiers[generation],price,max,accel,grip,drift,desc,
+        name:familyNames[family]?.[generation]??car.name,paint,accent,color:paint,
+        trim:tierColors[tiers[generation]]??car.trim,style:familyInfo[family]?.tag??car.style,
         design,setup:{...setups[inherited],...tuningByLevel[generation],feature,effect:desc}});
       if(!existing) cars.push(car);
     });
@@ -227,6 +277,8 @@
       const bodywork={...previous,tail:[index?1.59:1.86,previous.tail[1]+(index?.03:.07),index?.61:.56],
         cockpit:[previous.cockpit[0]*.94,previous.cockpit[1]-.062,previous.cockpit[2]*(index?.94:1.12)]};
       cars.push({...pro,id:`${family}-x${index+1}`,tier,generation,price,max,accel,grip,drift,desc,
+        name:familyNames[family]?.[generation]??pro.name,paint,accent,color:paint,
+        trim:tierColors[tier]??pro.trim,style:familyInfo[family]?.tag??pro.style,
         design:{title,rearWidth:shellWidth,bodywork,rearZ:index?-1.78:-1.83},
         setup:{...pro.setup,...tune,feature:title,effect:desc},flagship:{stage:index+1,paint,accent}});
     }
@@ -286,6 +338,9 @@
       [['wave','nova'].includes(car.family)?'glass':'matte',0,[[-.42-cabLength*.57,cab*.93,roof-.25,.12],[-.36-cabLength*.35,cab,roof-.12,.30],
         [-.34+cabLength*.12,cab*.89,roof-.12,.31],[-.34+cabLength*.53,cab*.68,roof-.27,.19]]],
     ];
+    if(car.family!=='wave') {
+      panels.push(['trim',0,[[.08,deckY+.085,0,.012],[.42,noseY+.13,0,.012],[nose-.36,noseY+.065,0,.011],[nose-.02,noseY-.01,0,.007]]]);
+    }
     for(const sign of [-1,1]) {
       if(depth>.04) {
         panels.push(['matte',sign*side,[[-length*.56,span*.79,.37,depth*.85],[-length*.37,span,.35,depth],
@@ -301,9 +356,9 @@
       if(car.family==='wave') {
         const stripe=sign*.24;
         const stripeWidth=.057;
-        panels.push(['ivory',stripe,[[-tail+.035,stripeWidth,deckY+.073,.008],[-tail+.22,stripeWidth,deckY+.147,.009],
+        panels.push(['trim',stripe,[[-tail+.035,stripeWidth,deckY+.073,.008],[-tail+.22,stripeWidth,deckY+.147,.009],
           [-.76,stripeWidth,deckY+.184,.009]]]);
-        panels.push(['ivory',stripe,[[.18,stripeWidth,noseY+.282,.009],[nose-.40,stripeWidth,noseY+.174,.009],
+        panels.push(['trim',stripe,[[.18,stripeWidth,noseY+.282,.009],[nose-.40,stripeWidth,noseY+.174,.009],
           [nose-.025,stripeWidth,noseY+.056,.009]]]);
       }
       if(car.family==='nova'&&car.generation>0) {
@@ -605,6 +660,7 @@
     switchback:[[1,25,-.7],[3,8,-1.23],[7,2.5,.75]],
     caldera:[[1,25,.2],[2,7,-1.30],[5,3.2,.14]],
     ice:[[1,14,-1.25],[2,8,.36],[5,3.9,-.14]],
+    zootopia:[[1,6.5,.35],[3,3.0,-.72],[6,1.6,.42]],
   };
 
   const routePoints = {
@@ -614,6 +670,7 @@
     switchback:[[230,300],[-70,308],[-277,246],[-320,143],[-262,94],[-132,99],[-110,18],[-268,-17],[-340,-88],[-266,-151],[-124,-119],[-114,-197],[-274,-235],[-223,-322],[13,-340],[201,-286],[280,-145],[255,-20],[342,87],[350,241],[305,298]],
     caldera:[[0,365],[-215,363],[-358,279],[-407,130],[-400,-98],[-390,-283],[-311,-340],[-108,-336],[140,-337],[383,-335],[455,-250],[444,-138],[365,-112],[282,-169],[206,-128],[201,-46],[278,17],[409,28],[450,138],[368,255],[210,243],[151,160],[54,166],[8,243],[91,292],[214,329],[155,367]],
     ice:[[100,298],[-118,315],[-271,266],[-311,159],[-258,53],[-145,30],[-128,-62],[-233,-125],[-261,-229],[-131,-304],[33,-260],[96,-112],[192,-133],[198,-259],[298,-315],[389,-244],[356,-83],[288,38],[374,162],[321,265],[207,229],[164,291]],
+    zootopia:[[0,380],[-230,370],[-390,270],[-430,120],[-360,-20],[-230,-80],[-150,-180],[-230,-290],[-100,-360],[80,-370],[250,-320],[390,-210],[430,-70],[380,80],[270,190],[170,300]],
   };
 
   function makeRoute(points) {
@@ -679,9 +736,20 @@
     }
     const bridge = track.id === 'coast' ? clamp(Math.min((phase - .34) / .043, (.60 - phase) / .05), 0, 1) : 0;
     if(track.id==='sunset') width=1.10;
+    if(track.id==='zootopia') {
+      // One lap visits the districts from the public ride description:
+      // Tundratown ice, Sahara Square heat, Rainforest mist and Little Rodentia.
+      if(phase>=.16&&phase<.34){width=.97;grip=.84;}
+      else if(phase>=.34&&phase<.48){width=1.12;}
+      else if(phase>=.55&&phase<.72){width=.92;grip=.96;}
+      else if(phase>=.72&&phase<.82){width=.88;}
+      else if(phase>=.90){width=1.06;}
+    }
     width-=bridge*.19;
     const pad = track.id === 'city' && phase >= .235 && phase < .264 ? -1
-      : track.id === 'city' && phase >= .705 && phase < .735 ? 1 : 0;
+      : track.id === 'city' && phase >= .705 && phase < .735 ? 1
+      : track.id === 'zootopia' && phase >= .485 && phase < .512 ? 1
+      : track.id === 'zootopia' && phase >= .845 && phase < .872 ? -1 : 0;
     const course = courseAt(track, distance);
     const { curve } = course;
     const angle = phase * Math.PI * 2;
@@ -694,7 +762,7 @@
     const curbSide = Math.abs(curve) > .36 ? Math.sign(curve) : 0;
     return {
       ...course, elevation, grade, bank: -curve * .063,
-      width, grip, curbSide, rail: width + (challenge?.margin??(track.id === 'coast' ? lerp(.35,.19,bridge) : track.id === 'city' ? .25 : .36)),
+      width, grip, curbSide, rail: width + (challenge?.margin??(track.id === 'coast' ? lerp(.35,.19,bridge) : (track.id === 'city'||track.id === 'zootopia') ? .25 : .36)),
       bridge, bridgeQueue:track.id==='coast'&&phase>=.308&&phase<.60, pad,
     };
   }
@@ -781,7 +849,7 @@
       owned, records, replays, upgrades, ghostVisible: source.ghostVisible !== false,
       credits: Number.isSafeInteger(source.credits) ? Math.max(0, source.credits) : 120,
       selected: owned.includes(source.selected) ? source.selected : 'rookie',
-      difficulty:Object.hasOwn(difficulties,source.difficulty)?source.difficulty:'club',
+      difficulty:Object.hasOwn(difficulties,source.difficulty)?source.difficulty:'rookie',
       training: ['brake','drift','boost','draft'].filter(id=>Array.isArray(source.training)&&source.training.includes(id)),
       firstRace:source.firstRace===true,
       cup:sanitizeCup(source.cup,owned),
@@ -793,6 +861,7 @@
     sunset: [.16,.44,.71,1],
     coast: [.22,.61,.82,1],
     city: [.24,.57,.87,1],
+    zootopia: [.17,.40,.66,1],
   };
   const replayStep = .12;
   const maxReplayFrames = 2200;
@@ -1003,11 +1072,22 @@
     const baseTuning=difficulties[difficulty]??difficulties.rookie;
     const extra=baseTuning===difficulties.rookie?0:track.id==='city'?.08:track.id==='coast'?.04:0;
     const tuning={...baseTuning,corner:baseTuning.corner+extra,pace:baseTuning.pace+extra*45};
-    const opponents = mode === 'solo' ? [] : [0, 1, 2, 3, 4].map(i => ({
+    // Match the field to the player's class. Before this, a Z7 always raced
+    // against C1-PRO showroom cars, so the endgame car made every race trivial.
+    const playerTier=Math.max(0,tiers.indexOf(car.tier));
+    const lineup=[...new Set(cars.map(option=>option.family).filter(Boolean))].map(family=>{
+      const models=carFamily(family).filter(option=>option.id!==car.id);
+      return models.reduce((best,option)=>Math.abs(tiers.indexOf(option.tier)-playerTier)<
+        Math.abs(tiers.indexOf(best.tier)-playerTier)?option:best,models[0]);
+    }).filter(Boolean).sort((a,b)=>Math.abs(tiers.indexOf(a.tier)-playerTier)-Math.abs(tiers.indexOf(b.tier)-playerTier));
+    while(lineup.length<5) lineup.push(cars[(lineup.length*7+3)%cars.length]);
+    const rivals=lineup.slice(0,5);
+    const opponents = mode === 'solo' ? [] : rivals.map((rival,i) => ({
       name: ['柚子', '旋风', '阿拓', '薄荷', '影子'][i],
-      car: configureCar(originalCars[i].id),
+      car: configureCar(rival.id),
       distance: 18 + 11 * i, x: i % 2 ? -0.45 : 0.43, speed: 0,
-      pace: [67, 75, 72, 82, 77][i]+tuning.pace, tuning, lane: i % 2 ? -0.44 : 0.42, finish: Infinity,
+      pace: Math.min(rival.max+6,Math.round(car.max*.94+[0,5,2,7,3][i]+tuning.pace)), tuning,
+      lane: i % 2 ? -0.44 : 0.42, finish: Infinity,
       passing: null, passes: 0, steer: 0, heading: 0, braking: false, style:rivalStyles[i],
     }));
     return {
@@ -1241,14 +1321,18 @@
     const trial={start,end,nitro:null,drift:null,curb:null,curbEntry:null};
     if(course) Object.assign(trial,{course,measurements:course.gates.map(()=>null),sample:null,gateIndex:0});
     if(course?.tanks) Object.assign(trial,{manualNitro:null,exitSeconds:0});
-    return Object.assign(race,{distance:start,speed,tanks:course?.tanks??(course?0:1),laps:1,trial});
+    return Object.assign(race,{distance:start,speed,tanks:course?.tanks??(course?0:1),laps:1,trial,rollingStart:true});
   }
 
   function createQuickDrive(carId, selection) {
     const race=createWorkshopTrial(carId,selection);
-    race.trial.start=120;
+    race.trial.start=80;
     race.trial.end=2220;
     race.distance=race.trial.start;
+    // Quick drive used to start at 174 km/h during a frozen 3-2-1 countdown.
+    // Start from rest so the HUD, countdown and car state agree.
+    race.speed=0;
+    race.rollingStart=false;
     return race;
   }
 
@@ -1359,8 +1443,8 @@
       race.x=side*limit;
       race.lateral=-side*Math.min(.60,outward*.49);
       if (race.railHit<.12 && (outward>.15 || race.railSide!==side)) {
-        race.speed*=clamp(.77-outward*.065,.58,.77);
-        race.railHit=.42*(race.car.setup.railRecovery??1);
+        race.speed*=clamp(.70-outward*.065,.55,.70);
+        race.railHit=.55*(race.car.setup.railRecovery??1);
         race.railSide=side;
         race.railContacts++;
         race.driftDirection=0;
@@ -1480,6 +1564,12 @@
     const inside=rival.x*Math.sign(section.curve);
     let pace=rivalTargetSpeed(track,rival.distance+(style.brake-1)*65,rival.pace,tuning.corner)
       *(1-corner*Math.max(0,inside)*.16);
+    const player=field?.[0];
+    if(player&&player!==rival&&!rival.trainingLead) {
+      const gap=player.distance-rival.distance;
+      if(gap>80) pace+=Math.min(15,gap*.03);
+      else if(gap<-120) pace-=Math.min(4,(-gap-120)*.01);
+    }
     const {bridgeQueue}=section;
     if(bridgeQueue) {
       const meters=wrap(rival.distance,track.length);
@@ -1673,7 +1763,7 @@
       const acceleration = car.accel * (1 - Math.min(0.76, speedRatio * 0.68)) + (race.boost > 0 ? car.setup.boostSpeed*.88*thrust : 0) + (race.exitDrive ? car.setup.exit : 0) + wakePower - grade * 21;
       race.speed += (race.speed > top ? -30 : acceleration) * dt;
     } else race.speed -= (race.offroad ? 20 : 7) * dt;
-    race.speed -= (slip * 8 + (race.surface==='curb' ? car.setup.curbLoss*.66 : 0) + (race.railHit>.18 ? 11 : 0)) * dt;
+    race.speed -= (slip * 8 + (race.surface==='curb' ? car.setup.curbLoss*.66 : 0) + (race.railHit>.18 ? 20 : 0)) * dt;
     if(track.challenge) {
       const excess=clamp((race.speed-challengeCornerSpeed(track,road))/28,0,1);
       const turn=clamp(Math.abs(curve)/1.55,0,1);
@@ -1773,14 +1863,18 @@
     if (race.trial || race.cup || race.phase !== 'finished' || race.awarded) return 0;
     race.awarded = true;
     const key = recordKey(race.track.id,race.mode,race.difficulty);
-    race.personalBest = !save.records[key] || race.elapsed < save.records[key];
+    const previous=save.records[key];
+    race.firstFinish=!previous;
+    race.personalBest = !previous || race.elapsed < previous;
+    race.recordDelta = previous ? race.elapsed-previous : null;
     if (race.personalBest) save.records[key] = race.elapsed;
     const podium = race.mode === 'race' ? ([160, 115, 80, 35, 15, 0][race.place - 1] ?? 0) : 0;
     const debut=race.mode==='race'&&!save.firstRace?45:0;
     if(race.mode==='race') save.firstRace=true;
     const reward = (race.mode === 'race' ? 130 : 85) + podium + debut + (race.personalBest ? 35 : 0) + Math.min(60, race.boostCount * 12);
-    save.credits += reward;
-    return reward;
+    const difficultyBonus=race.mode==='race'?({rookie:1,club:1.2,pro:1.5}[race.difficulty]??1):1;
+    save.credits += Math.round(reward*difficultyBonus);
+    return Math.round(reward*difficultyBonus);
   }
 
   function sceneryShade(track,distance) {
@@ -1799,7 +1893,7 @@
     return {phase:ignition?'ignition':'steady',strength:1+ignition*.31,ignition};
   }
 
-  const Kart = { cars, tracks, trackLandmarks, trackVisualCue, difficulties, clamp, lerp, wrap, courseAt, roadAt, brakingZones, rivalTargetSpeed, HALF_ROAD, KART_CLEARANCE, coastWaterHeight, recordKey, sanitizeSave, purchase, createRace, createDraftTrial, wakeGuide, createWorkshopTrial, workshopCourses, createSectorPractice, weakestSector, createCup, createCupRace, createCupPractice, recordCupResult, scoreCup, cupTracks, cupCourses, cupStandings, cornerWeight, update, award, startTimeTrial, saveReplay, ghostAt, replayCar, trafficOverlap, sectorDistances, originalCars, carFamily, configureCar, bodyPanels, bodySectionShape, tailPartPose, tailPipe, rotateTailPoint, parts, equippedParts, ownsPart, buyPart, equipPart, requiredCar, sceneryShade, flameCue };
+  const Kart = { cars, tracks, trackLandmarks, trackVisualCue, difficulties, clamp, lerp, wrap, courseAt, roadAt, brakingZones, rivalTargetSpeed, HALF_ROAD, KART_CLEARANCE, coastWaterHeight, recordKey, sanitizeSave, purchase, createRace, createDraftTrial, wakeGuide, createWorkshopTrial, workshopCourses, createSectorPractice, weakestSector, createCup, createCupRace, createCupPractice, recordCupResult, scoreCup, cupTracks, cupCourses, cupStandings, cornerWeight, update, award, startTimeTrial, saveReplay, ghostAt, replayCar, trafficOverlap, sectorDistances, originalCars, carFamily, configureCar, bodyPanels, bodySectionShape, tailPartPose, tailPipe, rotateTailPoint, parts, equippedParts, ownsPart, buyPart, equipPart, requiredCar, sceneryShade, flameCue, tierColors, classInfo, familyInfo, familyNames, familyPalettes };
   Kart.createQuickDrive = createQuickDrive;
   if (typeof module !== 'undefined') module.exports = Kart;
   else root.Kart = Kart;

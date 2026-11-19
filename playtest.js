@@ -6,6 +6,7 @@
       const initial = Kart.sanitizeSave({
         credits: 99999,
         selected: 'wave-x2',
+        difficulty: 'club',
         owned: Kart.carFamily('wave').map(car => car.id)
       });
       localStorage.setItem(saveKey, JSON.stringify(initial));
@@ -22,7 +23,7 @@
 
   async function checkOfflineStatus() {
     const home = new URL('./', location.href);
-    const cacheName = 'apex-z7-playtest-v9';
+    const cacheName = 'apex-z7-playtest-v14';
     if (navigator.serviceWorker.controller && await caches.match(home, { cacheName })) {
       status.textContent = '可离线游玩';
     }

@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const { cars, tracks, clamp } = Kart;
+  const { cars, tracks, clamp, classInfo, tierColors, familyInfo } = Kart;
   const $ = id => document.getElementById(id);
   const KEY = 'apex-kart-save-v1';
   const storage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
@@ -30,20 +30,38 @@
     return result;
   }
   const raceScreen=$('race-screen');
+  const gesturePad=$('gesture-pad');
+  const gestureKnob=$('gesture-knob');
   const touchDevice=matchMedia('(pointer:coarse)');
   const qualityLabels={low:'流畅',balanced:'清晰',high:'高'};
   const defaultQuality=touchDevice.matches?'balanced':'high';
   let mobileThrottle='auto';
+  let steerMode='drag';
+  let gestureTarget=0,gestureValue=0,gesturePointer=null;
+  function setGestureKnob(value) {
+    if(gestureKnob) gestureKnob.style.setProperty('--steer-left',`${50+Math.max(-1,Math.min(1,value))*38}%`);
+  }
   try {
     const stored=localStorage.getItem('apex-kart-quality');
     raceScreen.dataset.quality=Object.hasOwn(qualityLabels,stored)?stored:defaultQuality;
     if(localStorage.getItem('apex-kart-throttle')==='manual') mobileThrottle='manual';
+    const storedSteer=localStorage.getItem('apex-kart-steer');
+    if(storedSteer==='buttons'||storedSteer==='drag') steerMode=storedSteer;
   }
   catch { raceScreen.dataset.quality=defaultQuality; }
   const autoThrottle=()=>touchDevice.matches&&mobileThrottle==='auto';
   const syncTouchMode=()=>{raceScreen.dataset.throttle=autoThrottle()?'auto':'manual';};
+  const syncSteerMode=()=>{
+    const drag=touchDevice.matches&&steerMode==='drag';
+    raceScreen.dataset.steer=drag?'drag':'buttons';
+    gesturePad.hidden=!drag;
+    gestureTarget=0;gestureValue=0;
+    if(drag) setGestureKnob(0);
+  };
   syncTouchMode();
+  syncSteerMode();
   touchDevice.addEventListener('change',syncTouchMode);
+  touchDevice.addEventListener('change',syncSteerMode);
   const tiers = { C1: '#c9f74b', E2: '#ffac72', G3: '#59d8ff', R4: '#cba2ff', PRO: '#ff8796', SR:'#84f0ee', Z7:'#efba83' };
   const timeText = time => {
     const ticks = Math.floor(time * 100);
@@ -78,7 +96,7 @@
   let messageTime = 0;
   let nitroReadyTime = 0;
   let dialogKind = '';
-  let soundEnabled = false;
+  let soundEnabled = true;
   const musicKey='apex-kart-music';
   const volumeKey='apex-kart-music-volume';
   let musicChoice='auto';
@@ -103,6 +121,12 @@
   let prevCount = 4;
   let last = 0;
   let lastMap=-1;
+  let lastZooZone='';
+  const zooDistricts=[
+    [.155,'稀树草原中心'],[.335,'冰川镇'],[.545,'撒哈拉广场'],
+    [.735,'雨林区'],[.835,'小型啮齿动物镇'],[.925,'动物城天际线'],[1.01,'全城疯唱广场'],
+  ];
+  const zooDistrict=distance=>zooDistricts.find(([edge])=>distance<edge)?.[1]??'动物城';
   let lastRaceHud=-Infinity;
   let framePending=false;
   let resumeRequested=false;
@@ -128,10 +152,10 @@
   const mapCanvas = $('race-map');
   const mapTracks = new Map();
   const lessons={
-    brake:{name:'刹车入弯',start:695,speed:78,tanks:0,end:860,help:'在 40 米牌前松油，踩刹车把速度降到 195 km/h 以下，再过弯。'},
-    drift:{name:'漂移反打与集气',start:326,speed:67,tanks:0,end:565,help:'右转时按住漂移，车尾甩开后短按左转收住方向，积累 15% 氮气。'},
-    boost:{name:'出弯喷射',start:470,speed:59,tanks:1,end:690,help:'车身回正后按氮气，沿前方直道加速。'},
-    draft:{name:'尾流超车 · 黑曜深谷',help:'借用蓝潮 SR。沿前车尾流跟车，提示就绪后踩油门向旁边变线。'},
+    brake:{name:'刹车入弯',start:300,speed:0,tanks:0,end:860,help:'先在直道加速，看到 40 米牌重刹，把速度降到 195 km/h 以下再过弯。'},
+    drift:{name:'漂移反打与集气',start:180,speed:0,tanks:0,end:565,help:'加速进弯，按住漂移，车尾甩开后短按反方向收住，积累 15% 氮气。'},
+    boost:{name:'出弯喷射',start:300,speed:0,tanks:1,end:690,help:'车身回正后按氮气，沿前方直道加速。'},
+    draft:{name:'尾流超车 · 黑曜深谷',help:'借用 蓝潮·深海 SR。沿前车尾流跟车，提示就绪后踩油门向旁边变线。'},
   };
 
   function drawMap() {
@@ -182,6 +206,18 @@
     return Kart.carFamily(car.family).find(candidate=>candidate.generation>car.generation&&!save.owned.includes(candidate.id));
   }
 
+  const statMax=[Math.max(...cars.map(car=>car.max))/.9,Math.max(...cars.map(car=>car.accel))/.48,
+    Math.max(...cars.map(car=>car.grip))*76,Math.max(...cars.map(car=>car.drift))*71];
+
+  function renderClassLadder() {
+    const ladder=$('class-ladder');
+    if(!ladder) return;
+    ladder.innerHTML=Object.entries(classInfo).map(([tier,info])=>`
+      <button class="class-step" data-class="${tier}" style="--tier:${tierColors[tier]}" aria-current="${previewCar.tier===tier}">
+        <span>${tier}</span><b>${info.name}</b><small>${info.en} · ${info.desc}</small>
+      </button>`).join('');
+  }
+
   function renderCar() {
     const car = previewCar=Kart.configureCar(inspected,previewParts);
     const owned = save.owned.includes(car.id);
@@ -201,7 +237,10 @@
     $('car-feature').textContent = `${car.tier} · ${car.design.title}`;
     $('car-effect').textContent = car.setup.effect;
     const values = [Math.round(car.max / 0.9), Math.round(car.accel / .48), Math.round(car.grip * 76), Math.round(car.drift * 71)];
-    $('stats').innerHTML = ['极速', '加速', '操控', '漂移'].map((label, i) => `<div><dt>${label}</dt><dd class="stat-bar" aria-hidden="true"><i style="width:${Math.min(100,values[i])}%"></i></dd><dd>${values[i]}</dd></div>`).join('');
+    $('stats').innerHTML = ['极速', '加速', '操控', '漂移'].map((label, i) => {
+      const width=Math.max(4,Math.min(100,Math.round(values[i]/statMax[i]*100)));
+      return `<div><dt>${label}</dt><dd class="stat-bar" aria-hidden="true"><i style="width:${width}%"></i></dd><dd>${values[i]}</dd></div>`;
+    }).join('');
     const equip = $('equip');
     const required=Kart.requiredCar(save,car);
     equip.disabled = equipped || (!owned && (save.credits < car.price || Boolean(required)));
@@ -216,13 +255,15 @@
     for (const button of carGrid.children) {
       const option = carFor(button.dataset.car);
       const variants=option.family?Kart.carFamily(option.family):[option];
+      const ownedCount=variants.filter(variant=>save.owned.includes(variant.id)).length;
       button.setAttribute('aria-pressed', variants.some(variant=>variant.id===inspected));
-      button.querySelector('.card-state').textContent = variants.some(variant=>variant.id===save.selected)?'使用中':
-        option.family?`${variants.filter(variant=>save.owned.includes(variant.id)).length} / ${variants.length}`:
+      button.querySelector('.card-state').textContent = variants.some(variant=>variant.id===save.selected)?`${ownedCount} / ${variants.length} · 使用中`:
+        option.family?`${ownedCount} / ${variants.length}`:
         save.owned.includes(option.id)?'已拥有':`◈ ${option.price}`;
     }
     KartRender.garage($('hero-car'), car, yaw);
     renderWorkshop(car,owned);
+    renderClassLadder();
   }
 
   function inspectCar(id) {
@@ -240,8 +281,18 @@
   function renderWorkshop(car,owned) {
     const family=car.family?Kart.carFamily(car.family):[];
     const choices=$('generations');
+    const meta=familyInfo[car.family];
+    $('generation-note').textContent=meta?`${meta.name}车系 · ${meta.tag}`:'';
     choices.hidden=!family.length;
-    choices.innerHTML=family.map(model=>`<button data-generation="${model.id}" ${model.flagship?`style="--generation-color:${tiers[model.tier]}"`:''} aria-pressed="${model.id===car.id}"><b>${model.tier}</b><span>${model.design.title}</span><small>${save.owned.includes(model.id)?'已拥有':`◈ ${model.price}`}</small></button>`).join('');
+    choices.innerHTML=family.map(model=>{
+      const owned=save.owned.includes(model.id);
+      return `<button class="generation-card" data-generation="${model.id}" style="--gen-color:${tierColors[model.tier]}" aria-pressed="${model.id===car.id}">
+        <span class="gen-tier">${model.tier}</span><b>${model.name}</b>
+        <span class="gen-title">${model.design.title}</span>
+        <span class="gen-meta">${owned?'已拥有':`◈ ${model.price}`}</span>
+        <span class="gen-class">${classInfo[model.tier]?.name??''} · ${classInfo[model.tier]?.en??''}</span>
+      </button>`;
+    }).join('');
     const select=$('compare-base');
     select.innerHTML='<option value="factory">本车原厂</option>'+family.filter(model=>model.id!==car.id).map(model=>`<option value="${model.id}">${model.name} ${model.tier} 原厂</option>`).join('');
     select.value=comparison;
@@ -260,7 +311,16 @@
     $('compare-after-label').textContent=`${car.tier} 预览 · ${car.design.title} · ${car.pipes.length} 管`;
     const signed=value=>`${value>.005?'+':''}${Number(value.toFixed(2))}`;
     const boostDelta=car.setup.boostTime-before.setup.boostTime;
-    $('compare-stats').textContent=`排气 ${before.pipes.length} → ${car.pipes.length} 根 · 氮气 ${boostDelta>0?'+':''}${boostDelta.toFixed(2)} 秒 · 氮气极速 ${signed((car.max+car.setup.boostSpeed-before.max-before.setup.boostSpeed)*3)} km/h · 路肩惩罚 ${signed((car.setup.curbLoss/before.setup.curbLoss-1)*100)}% · 集气 ${signed((car.drift*car.setup.chargeRate/(before.drift*before.setup.chargeRate)-1)*100)}%`;
+    const topDelta=(car.max+car.setup.boostSpeed)-(before.max+before.setup.boostSpeed);
+    const curbDelta=(car.setup.curbLoss/before.setup.curbLoss-1)*100;
+    const chargeDelta=(car.drift*car.setup.chargeRate/(before.drift*before.setup.chargeRate)-1)*100;
+    const changes=[];
+    if(car.pipes.length!==before.pipes.length) changes.push(`排气 ${before.pipes.length} → ${car.pipes.length} 根`);
+    if(Math.abs(boostDelta)>.005) changes.push(`氮气 ${boostDelta>0?'+':''}${boostDelta.toFixed(2)} 秒`);
+    if(Math.abs(topDelta)>.005) changes.push(`氮气极速 ${signed(topDelta*3)} km/h`);
+    if(Math.abs(curbDelta)>.05) changes.push(`路肩惩罚 ${signed(curbDelta)}%`);
+    if(Math.abs(chargeDelta)>.05) changes.push(`集气 ${signed(chargeDelta)}%`);
+    $('compare-stats').textContent=changes.length?changes.join(' · '):'与原厂一致';
     $('tail-rig-note').textContent=car.tailRig?`${car.tier} · ${car.tailRig.title} · ${car.tailRig.trigger}触发`:'';
     for(const button of $('compare-views').querySelectorAll('[data-view]')) button.setAttribute('aria-pressed',String(button.dataset.view===compareView));
     drawWorkshopCars();
@@ -277,12 +337,18 @@
     const track = tracks.find(item => item.id === trackId);
     const car = carFor(save.selected);
     $('equipped').textContent = `当前车辆 · ${car.name} ${car.tier}`;
-    $('track-selected').textContent = track.name;
+    $('track-selected').textContent = mode==='race'?`${track.name} · ${!save.firstRace?'首战第 3 位':'末位发车'}`:track.name;
     $('race-difficulty').value=save.difficulty;
     const record = save.records[Kart.recordKey(track.id,mode,save.difficulty)];
     const oldRecord=mode==='race'?save.records[Kart.recordKey(track.id,mode)]:null;
     const replay=mode==='solo'?save.replays[track.id]:null;
-    $('track-record').textContent = [record ? `最佳完赛时间 ${timeText(record)}` : '尚无完赛纪录',oldRecord?`旧版纪录 ${timeText(oldRecord)}`:'',replay?`幽灵 ${timeText(replay.time)}`:''].filter(Boolean).join(' · ');
+    const classRecords=mode==='race'?['rookie','club','pro'].map(level=>({
+      level,time:save.records[Kart.recordKey(track.id,mode,level)]
+    })).filter(entry=>entry.time):[];
+    $('track-record').textContent = [classRecords.length
+      ? `最佳 ${classRecords.map(entry=>`${Kart.difficulties[entry.level].name} ${timeText(entry.time)}`).join(' · ')}`
+      : (record ? `最佳完赛时间 ${timeText(record)}` : '尚无完赛纪录'),
+      oldRecord?`旧版纪录 ${timeText(oldRecord)}`:'',replay?`幽灵 ${timeText(replay.time)}`:''].filter(Boolean).join(' · ');
     for (const button of trackGrid.children) button.setAttribute('aria-pressed', button.dataset.track === trackId);
     for (const button of document.querySelectorAll('[data-mode]')) button.setAttribute('aria-pressed', button.dataset.mode === mode);
     $('track-grid').hidden=mode==='cup';
@@ -295,6 +361,18 @@
         '落日峡谷 → 碧海折线 → 午夜回环 · 累计积分';
     }
     $('start-race').textContent=mode==='cup'?'进入杯赛 →':'发车 →';
+  }
+
+  function showAllCars() {
+    const head=Object.entries(classInfo).map(([tier,info])=>`<th><span style="color:${tierColors[tier]}">${tier}</span><br><small>${info.name}</small></th>`).join('');
+    const rows=Object.entries(familyInfo).map(([family,info])=>{
+      const models=Kart.carFamily(family);
+      return `<tr><th><b>${info.name}</b><small>${info.en} · ${info.tag}</small></th>${models.map(model=>{
+        const owned=save.owned.includes(model.id);
+        return `<td><button class="matrix-car${owned?'':' locked'}" data-inspect-car="${model.id}" style="--tier-color:${tierColors[model.tier]}"><span>${model.tier}</span><b>${model.name}</b><small>${owned?'已拥有':`◈ ${model.price}`}</small></button></td>`;
+      }).join('')}</tr>`;
+    }).join('');
+    showDialog('garage-matrix',`<h2 id="dialog-title">车系图谱</h2><p>5 车系 × 7 等级 = 35 辆。C1 新秀 → Z7 旗舰；车身颜色代表车系，轮圈与饰条代表等级。</p><div class="car-matrix"><table><thead><tr><th>车系</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="dialog-actions"><button class="primary" data-action="close">关闭</button></div>`);
   }
 
   function drawCards() {
@@ -487,6 +565,8 @@
   function clearKeys() {
     keys.clear();
     pendingTouchBoost=false;
+    gestureTarget=0;gestureValue=0;gesturePointer=null;
+    raceScreen.classList.remove('gesture-active');
     for (const button of document.querySelectorAll('.touch-controls .held')) button.classList.remove('held');
     touches.clear();
   }
@@ -559,6 +639,15 @@
       run ? Kart.createWorkshopTrial(run.id,run.parts,comparisonRun.courseId) :
       quickDrive ? Kart.createQuickDrive(model,Kart.equippedParts(save,model)) :
       Kart.createRace(model, trialCar||lesson ? 'sunset' : trackId, trialCar||lesson ? 'solo' : mode,lesson?{}:trialCar?.parts??Kart.equippedParts(save,model),save.difficulty);
+    if(race.rollingStart) {race.phase='racing';race.countdown=0;}
+    const firstGrid=!save.firstRace&&race.mode==='race'&&!race.cup&&!lesson&&!trialCar&&!quickDrive&&!comparisonRun;
+    if(firstGrid) {
+      // First race only: start third instead of last; after this the normal
+      // last-place chase grid applies so records stay consistent.
+      race.distance=22;
+      race.opponents.forEach((rival,index)=>{rival.distance=[0,11,33,44,55][index]??rival.distance;});
+      race.place=3;
+    }
     if(lesson&&lesson!=='draft') {
       const drill=lessons[lesson];
       Object.assign(race,{distance:drill.start,speed:drill.speed,tanks:drill.tanks,laps:1,lessonPassed:false,braked:false,caught:false,
@@ -573,6 +662,7 @@
     lastRaceHud=-Infinity;
     resumeRequested=false;
     lastMap=-1;
+    lastZooZone='';
     pendingFinish=null;
     prevCount = 4;
     messageTime = 0;
@@ -583,6 +673,8 @@
     $('race-track').textContent = race.cup?`第 ${race.cup.station+1} 站 · ${race.track.name}`:race.track.name;
     $('place-label').textContent = lesson||race.mode==='solo'?'模式':'名次';
     if(!touchDevice.matches) $('pause').focus({ preventScroll: true });
+    if(race.mode==='race'&&race.opponents.length) flash(firstGrid?'首战 · 第 3 位发车':'末位发车 · 追赶 5 台',1.4);
+    if(touchDevice.matches&&steerMode==='drag'&&!localStorage.getItem('apex-kart-gesture-seen')) flash('左右滑动转向 · 按漂移键起漂',2.6);
     audioStart();
     renderHud();
     KartRender.raceFrame($('race-canvas'), race);
@@ -645,7 +737,8 @@
     engineSound();
     const quality=qualityLabels[raceScreen.dataset.quality];
     const throttle=touchDevice.matches?`<button class="secondary" data-action="throttle">油门 · ${autoThrottle()?'自动':'手动'}</button>`:'';
-    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2><div class="pause-details">${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${performancePanel()}<details class="pause-music"><summary>背景音乐设置</summary>${musicPicker()}</details><div class="dialog-actions">${throttle}<button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button></div></div><div class="dialog-actions pause-resume"><button class="primary" data-action="resume">继续比赛</button></div>`);
+    const steer=touchDevice.matches?`<button class="secondary" data-action="steer">转向 · ${steerMode==='drag'?'滑动':'按键'}</button>`:'';
+    showDialog('pause', `<h2 id="dialog-title">比赛暂停</h2><div class="pause-details">${typeof reason==='string'&&reason?`<p>${reason}</p>`:''}${performancePanel()}<details class="pause-music"><summary>背景音乐设置</summary>${musicPicker()}</details><div class="dialog-actions">${throttle}${steer}<button class="secondary" data-action="reset-track">回到赛道 · R</button><button class="secondary" data-action="quality">画质 · ${quality}</button><button class="secondary" data-action="tracks">退出比赛</button><button class="secondary" data-action="retry">重新开始</button></div></div><div class="dialog-actions pause-resume"><button class="primary" data-action="resume">继续比赛</button></div>`);
   }
 
   function finishRace() {
@@ -654,9 +747,11 @@
     if(quickDrive) {
       clearKeys();
       const drift=(race.trial.drift??0)>0;
+      const charged=Math.min(2,race.trial.drift??0);
+      const chargeText=charged>=2?'2 管满':charged>=1?`${charged.toFixed(1)} 管`:`${Math.round(charged*100)}%`;
       const boost=race.boostCount>0;
       const tip=!drift?'下次入弯时，方向和漂移一起按住。':!boost?'下次出弯时，松开漂移，车身回正后按氮气。':'完整比赛里，靠漂移蓄出下一管氮气。';
-      showDialog('finish',`<h2 id="dialog-title">快速试驾完成</h2><p>落日峡谷 · ${timeText(race.elapsed)}</p><dl><div><dt>漂移蓄气</dt><dd>${drift?`${Math.round(race.trial.drift*100)}%`:'未触发'}</dd></div><div><dt>氮气释放</dt><dd>${boost?'已完成':'未触发'}</dd></div></dl><p>${tip}</p><div class="dialog-actions"><button class="secondary" data-action="garage">返回车库</button><button class="secondary" data-action="retry">再跑一次</button><button class="primary" data-action="quick-full">完整比赛</button></div>`);
+      showDialog('finish',`<h2 id="dialog-title">快速试驾完成</h2><p>落日峡谷 · ${timeText(race.elapsed)}</p><dl><div><dt>漂移蓄气</dt><dd>${drift?chargeText:'未触发'}</dd></div><div><dt>氮气释放</dt><dd>${boost?'已完成':'未触发'}</dd></div></dl><p>${tip}</p><div class="dialog-actions"><button class="secondary" data-action="garage">返回车库</button><button class="secondary" data-action="retry">再跑一次</button><button class="primary" data-action="quick-full">完整比赛</button></div>`);
       return;
     }
     if(race.cup) {clearKeys();void saveCupStation();return;}
@@ -685,6 +780,7 @@
   async function finishLesson() {
     const id=lesson;
     const completed=race;
+    const data=completed.lessonData??{};
     let text='再试一次，按提示完成动作。';
     if(completed.lessonPassed) {
       saving=true;
@@ -697,10 +793,37 @@
       saving=false;
       renderCredits();
       text=result.status==='saved'?(result.result?'动作达标，首次奖励 +30 点。':'动作达标，首次奖励已领取。'):saveMessages[result.status];
+    } else if(id==='brake') {
+      text=data.board==null
+        ? '还没到 40 米牌就结束。先加速，看到牌再重刹。'
+        : data.board*3<=195
+          ? `到达 40 米牌时只有 ${Math.round(data.board*3)} km/h，已经低于目标；这一关要练习从 200+ 重刹，先加速再刹车。`
+          : `到达 40 米牌时 ${Math.round(data.board*3)} km/h，目标 ≤195 km/h。${data.brakeDistance==null?'没有测到有效刹车距离。':`刹车距离 ${data.brakeDistance.toFixed(1)} 米。`}`;
+    } else if(id==='drift') {
+      text=`这次最多蓄到 ${Math.round(Math.min(1,data.maxDrift??0)*100)}% 氮气，目标 15%。入弯后保持方向 + 漂移，车尾甩开再短按反方向。`;
+    } else if(id==='boost') {
+      text=!completed.boostCount?'这次没有释放氮气。车身回正后按空格/氮气键。':`氮气释放了，但出弯时仍有 ${(Math.abs(completed.slip)*100).toFixed(0)}% 滑移；先回正再点火。`;
     }
     if(race!==completed) return;
     const wake=completed.wake;
-    const stats=id==='draft'?`<dl><div><dt>蓄势就绪</dt><dd>${wake.readies} 次</dd></div><div><dt>切线加速</dt><dd>${wake.launches} 次</dd></div><div><dt>干净超车</dt><dd>${wake.passes} 次</dd></div><div><dt>最短跟车距离</dt><dd>${Number.isFinite(wake.closest)?`${wake.closest.toFixed(1)} m`:'未测到'}</dd></div></dl>`:'';
+    const rows=[];
+    if(id==='brake') {
+      rows.push(['40 米牌速度',data.board==null?'未测到':`${Math.round(data.board*3)} km/h`]);
+      rows.push(['开始刹车',data.brakeAt?`${Math.round(data.brakeAt.speed*3)} km/h`:'未刹车']);
+      rows.push(['刹车距离',data.brakeDistance==null?'—':`${data.brakeDistance.toFixed(1)} m`]);
+      rows.push(['目标', '≤ 195 km/h']);
+    } else if(id==='drift') {
+      rows.push(['最大蓄气',`${Math.round(Math.min(1,data.maxDrift??0)*100)}%`]);
+      rows.push(['最大滑移',`${Math.round((data.maxSlip??0)*100)}%`]);
+      rows.push(['目标','≥ 15% 蓄气']);
+    } else if(id==='boost') {
+      rows.push(['氮气释放',`${completed.boostCount} 次`]);
+      rows.push(['峰值速度',`${Math.round((data.peak??completed.speed)*3)} km/h`]);
+      rows.push(['出弯滑移',`${Math.round(Math.abs(completed.slip)*100)}%`]);
+      rows.push(['目标','回正后点火']);
+    }
+    const stats=id==='draft'?`<dl><div><dt>蓄势就绪</dt><dd>${wake.readies} 次</dd></div><div><dt>切线加速</dt><dd>${wake.launches} 次</dd></div><div><dt>干净超车</dt><dd>${wake.passes} 次</dd></div><div><dt>最短跟车距离</dt><dd>${Number.isFinite(wake.closest)?`${wake.closest.toFixed(1)} m`:'未测到'}</dd></div></dl>`:
+      rows.length?`<dl>${rows.map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`:'';
     showDialog('finish',`<h2 id="dialog-title">${completed.lessonPassed?'训练达标':'继续练习'}</h2><p>${text}</p>${stats}<div class="dialog-actions"><button class="secondary" data-action="retry">重练这段</button><button class="primary" data-action="training-menu">选择训练</button></div>`);
   }
 
@@ -710,6 +833,10 @@
   }
 
   function nextStep(completed) {
+    if(!completed.trial&&completed.mode==='race'&&completed.boostCount===0&&!save.training.includes('boost'))
+      return '这一场一次氮气都没放。下一场出弯时，车身回正后按空格/氮气键，直道会明显更快。';
+    if(completed.mode==='race'&&(completed.totalDrift??0)<.25&&!save.training.includes('drift'))
+      return '这一场几乎没有漂移。入弯时方向和漂移一起按住，出弯回正，既能过弯又能攒氮气。';
     const upgrade=nextUpgrade(completed.car);
     if(upgrade&&save.credits>=upgrade.price) return `现在可解锁 ${upgrade.name} ${upgrade.tier}，先试驾比较转向和出弯。`;
     const worst=completed.timing?.splits.reduce((pick,split,i,array)=>{
@@ -729,24 +856,28 @@
     const result=await commitSave(draft=>{
       const scored={...completed,awarded:false};
       const reward=Kart.award(draft,scored);
-      return {reward,recorded:Kart.saveReplay(draft,scored),personalBest:scored.personalBest};
+      return {reward,recorded:Kart.saveReplay(draft,scored),personalBest:scored.personalBest,
+        firstFinish:scored.firstFinish,recordDelta:scored.recordDelta};
     });
     saving=false;
     renderCredits();
     clearKeys();
     if(race!==completed) return;
     const saved=result.status==='saved';
-    const {reward,recorded,personalBest}=result.result??{};
+    const {reward,recorded,personalBest,firstFinish,recordDelta}=result.result??{};
     if(saved) {
       pendingFinish=null;
       [392,523.25,659.25].forEach((note,i)=>beep(note,.26,i*.11));
     }
     const fastest=Math.min(...completed.lapTimes);
     const ghostStatus=saved&&completed.timing?(recorded?' · 幽灵已保存':personalBest?' · 幽灵未保存':' · 保留已有幽灵'):'';
+    const recordLine=saved?personalBest
+      ? (firstFinish?(completed.mode==='race'?'首次完赛已记录':'首次基准圈已记录'):`个人最佳 · ${deltaText(recordDelta)}`)
+      : (recordDelta!=null?`比个人最佳慢 ${deltaText(recordDelta)}`:'') :'';
     const upgrade=nextUpgrade(completed.car);
     const upgradeAction=saved&&upgrade?`<button class="secondary" data-action="view-upgrade" data-upgrade="${upgrade.id}">查看 ${upgrade.name} ${upgrade.tier}</button>`:'';
     const practice=saved&&Kart.weakestSector(completed)!==null?'<button class="primary" data-action="practice-sector">重练最慢分段 ↗</button>':'';
-    showDialog('finish', `<h2 id="dialog-title">${completed.mode==='race'?`第 ${completed.place} 名完赛`:'计时挑战完成'}</h2><p>${completed.track.name} · ${personalBest?'刷新个人纪录！':completed.car.name}${ghostStatus}</p>${saved?'':`<p role="status">成绩和点数尚未保存。${saveMessages[result.status]??''}</p>`}<dl><div><dt>完赛时间</dt><dd>${timeText(completed.elapsed)}</dd></div><div><dt>最快单圈</dt><dd>${Number.isFinite(fastest)?timeText(fastest):'—'}</dd></div><div><dt>氮气释放</dt><dd>${completed.boostCount} 次</dd></div><div><dt>获得点数</dt><dd>${saved?`+${reward}`:'待保存'}</dd></div></dl>${sectorResults(completed.timing)}<p>${nextStep(completed)}</p><div class="dialog-actions"><button class="secondary" data-action="garage">返回车库</button><button class="secondary" data-action="tracks">选择赛道</button>${upgradeAction}${practice}${saved?'<button class="secondary" data-action="retry">再跑一场</button>':'<button class="primary" data-action="save-finish">重试保存</button>'}</div>`);
+    showDialog('finish', `<h2 id="dialog-title">${completed.mode==='race'?`第 ${completed.place} 名完赛`:'计时挑战完成'}</h2><p>${completed.track.name} · ${completed.car.name}${ghostStatus}</p>${recordLine?`<p class="record-note">${recordLine}</p>`:''}${saved?'':`<p role="status">成绩和点数尚未保存。${saveMessages[result.status]??''}</p>`}<dl><div><dt>完赛时间</dt><dd>${timeText(completed.elapsed)}</dd></div><div><dt>最快单圈</dt><dd>${Number.isFinite(fastest)?timeText(fastest):'—'}</dd></div><div><dt>氮气释放</dt><dd>${completed.boostCount} 次</dd></div><div><dt>获得点数</dt><dd>${saved?`+${reward}`:'待保存'}</dd></div></dl>${sectorResults(completed.timing)}<p>${nextStep(completed)}</p><div class="dialog-actions"><button class="secondary" data-action="garage">返回车库</button><button class="secondary" data-action="tracks">选择赛道</button>${upgradeAction}${practice}${saved?'<button class="secondary" data-action="retry">再跑一场</button>':'<button class="primary" data-action="save-finish">重试保存</button>'}</div>`);
   }
 
   function sectorName(index) {
@@ -788,7 +919,9 @@
     const standings=cup?Kart.cupStandings(cup):[];
     const rank=standings.findIndex(entry=>entry.id===0);
     const gap=rank>0?standings[rank-1].points-standings[rank].points:0;
-    const pursuit=count?`<p>${rank===0?'当前领跑':gap?`距前一名 ${gap} 分`:'与前一名同分'}</p>`:'';
+    const lastOrder=cup?.stages.at(-1)?.order;
+    const tieDetail=rank>0&&gap===0&&lastOrder?`同分 · 末站第 ${lastOrder.indexOf(0)+1} 名，前一名第 ${lastOrder.indexOf(standings[rank-1].id)+1} 名`:'与前一名同分';
+    const pursuit=count?`<p>${rank===0?'当前领跑':gap?`距前一名 ${gap} 分`:tieDetail}</p>`:'';
     const record=save.cupRecords[cup?.difficulty??save.difficulty];
     const trophy=record?`<p class="cup-record">${record.place<=3?'<span aria-hidden="true">🏆</span> ':''}历史最佳 · ${record.place===1?'冠军奖杯':record.place===2?'亚军奖杯':record.place===3?'季军奖杯':`第 ${record.place} 名`} · ${record.points} 分 · ${timeText(record.time)}</p>`:
       '<p>首夺领奖台 +400 金币 · 首夺冠军另 +600 金币（每档难度）</p>';
@@ -983,8 +1116,26 @@
 
   function renderHud() {
     const lap = Math.min(race.laps, Math.floor(race.distance / race.track.length) + 1);
-    $('lap').textContent = `${lap} / ${race.laps}`;
+    const segment=Boolean(race.trial&&!race.cup);
+    if(segment) {
+      const start=race.trial.start??0;
+      const end=race.trial.end??race.track.length;
+      $('lap').textContent=`${Math.min(100,Math.max(0,Math.round((race.distance-start)/(end-start)*100)))}%`;
+      $('lap').nextElementSibling.textContent='路段';
+    } else {
+      $('lap').textContent = `${lap} / ${race.laps}`;
+      $('lap').nextElementSibling.textContent='圈';
+    }
     $('timer').textContent = timeText(race.elapsed);
+    if(race.track.id==='zootopia') {
+      const phase=((race.distance/race.track.length)%1+1)%1;
+      const zone=zooDistrict(phase);
+      $('race-track').textContent=`动物城 · ${zone}`;
+      if(zone!==lastZooZone) {
+        lastZooZone=zone;
+        if(race.phase==='racing') flash(zone,1.25);
+      }
+    }
     $('place').textContent = cupPractice?'练习':sectorPractice?'重练':lesson?'训练':comparisonRun ? (comparisonRun.courseId?race.car.tier:(comparisonRun.index?'试驾 B':'试驾 A')) : quickDrive||trialCar ? '试驾' : race.mode === 'solo' ? '计时' : race.place;
     $('place-total').textContent = lesson||race.mode==='solo'?'':`/ ${race.opponents.length+1}`;
     $('speed').textContent = String(Math.round(race.speed * 3)).padStart(3, '0');
@@ -1038,7 +1189,10 @@
         sectorPractice?`${sectorName(race.trial.sector)} · ${race.distance<race.trial.line?'接近计时起点':
         race.distance<race.trial.speedGates[0]?'接近取样弯':race.distance<race.trial.speedGates[1]?'正在测过弯速度':'驶向分段终点'}`:
         race.trial.course?workshopHint(race.trial,race.distance):race.distance<160?'起步直道 · 释放氮气':race.distance<325?'右弯 · 漂移集气':race.distance<500?'右侧路肩 · 轻压红白路沿':'驶向短段终点';
-      hint.textContent=lesson?(race.lessonPassed?'动作达标，驶过终点':lessons[lesson].help):`${stage} · 剩 ${Math.round(end-race.distance)} 米`;
+      hint.textContent=lesson?(race.lessonPassed?'动作达标，驶过终点':
+        lesson==='brake'?(race.distance<700?'先加速 · 看到 40 米牌重刹，目标 ≤195 km/h':race.distance<790?'现在重刹！':'保持走线，驶过终点'):
+        lesson==='drift'?(race.distance<300?'加速进弯 · 按住方向 + 漂移':'车尾甩开后短按反方向 · 蓄到 15%'):
+        lesson==='boost'?(race.boostCount?'已释放 · 保持油门':'车身回正后按空格/氮气键'):lessons[lesson].help):`${stage} · 剩 ${Math.round(end-race.distance)} 米`;
     } else hint.hidden=true;
     $('countdown').textContent = race.phase === 'countdown' ? Math.ceil(race.countdown) : race.elapsed < .65 && race.phase !== 'finished' ? 'GO!' : '';
     const driftStatus = !race.driftDirection ? '车身回正' : race.steer * race.driftDirection < -.08 ? '反打收尾' : '漂移蓄气';
@@ -1067,6 +1221,16 @@
     messageTime = duration;
   }
 
+  function resetToTrack() {
+    if(!race||race.phase!=='racing'||race.phase==='finished') return;
+    race.x=0;race.lateral=0;race.slip=0;race.heading=0;race.steer=0;
+    race.speed=Math.min(race.speed,18);race.offroad=false;race.surface='road';
+    race.railHit=0;race.hit=0;race.driftDirection=0;race.boostQueue=0;
+    race.elapsed+=2;
+    flash('回到赛道 · +2.0 秒',1.4);
+    renderHud();
+  }
+
   function drive(dt) {
     const before = race.tanks;
     const boostCount = race.boostCount;
@@ -1080,22 +1244,40 @@
     const wakeLaunch=race.wake?.launches??0;
     const wakePass=race.wake?.passes??0;
     const input=KartSession.resolveDriveInput(keys,touches,autoThrottle());
+    gestureValue+=(gestureTarget-gestureValue)*(1-Math.exp(-dt*18));
+    if(Math.abs(gestureTarget)<.01&&Math.abs(gestureValue)<.01) gestureValue=0;
+    if(Math.abs(gestureValue)>.01) input.steer=gestureValue;
     if(pendingTouchBoost) {
       input.boost=true;
       if(race.phase==='racing') pendingTouchBoost=false;
     }
     const previousDrift=race.driftDirection;
     Kart.update(race,input,dt);
+    if(lesson) {
+      race.lessonData??={};
+      const data=race.lessonData;
+      if(lesson==='brake') {
+        if(data.board==null&&race.distance>=760) data.board=race.speed;
+        if(input.brake&&data.brakeAt==null&&race.speed>20) data.brakeAt={distance:race.distance,speed:race.speed};
+        if(data.brakeAt&&data.slowAt==null&&race.speed<=65) data.slowAt={distance:race.distance,speed:race.speed};
+        if(data.brakeAt&&data.slowAt) data.brakeDistance=data.slowAt.distance-data.brakeAt.distance;
+      } else if(lesson==='drift') {
+        data.maxDrift=Math.max(data.maxDrift??0,race.trial.drift??0);
+        data.maxSlip=Math.max(data.maxSlip??0,Math.abs(race.slip));
+      } else if(lesson==='boost') {
+        data.peak=Math.max(data.peak??0,race.speed);
+      }
+    }
     if(lesson==='brake'&&input.brake&&race.speed<=65&&race.distance<770) race.braked=true;
     if(lesson==='drift'&&previousDrift*input.steer<0&&input.drift&&Math.abs(race.slip)>.08) race.caught=true;
     if(lesson) {
       race.lessonPassed ||= lesson==='draft'?race.wake.passes>0:
-        lesson==='brake'?race.braked&&race.distance>=790:
+        lesson==='brake'?race.braked&&race.distance>=790&&(race.lessonData?.board??race.speed)>65:
         lesson==='drift'?race.caught&&race.trial.drift>=.15:race.boostCount>0&&Math.abs(race.slip)<.08;
     }
     messageTime -= dt;
     nitroReadyTime=Math.max(0,nitroReadyTime-dt);
-    if(race.railContacts>railContacts) contactSound(true);
+    if(race.railContacts>railContacts) {contactSound(true);flash('蹭护栏 · 掉速',.55);}
     else if(race.carContacts>carContacts) contactSound(false);
     else if(race.surface==='curb' && surface!=='curb' && race.speed>16) contactSound(false);
     if(race.exitDrive>exitDrive) flash('出弯增扭',.62);
@@ -1144,7 +1326,7 @@
           drive(step);
           return race.phase!=='finished';
         });
-        if(!onTime&&race.phase!=='countdown') pauseRace('画面中断，比赛已暂停。继续后从原位置恢复。');
+        if(!onTime&&race.phase!=='countdown') pauseRace('检测到卡顿，比赛已暂停。继续后从原位置恢复。');
         const canvas=$('race-canvas');
         const quality=raceScreen.dataset.quality;
         const mobile=touchDevice.matches;
@@ -1174,10 +1356,11 @@
 
   for (const car of Kart.originalCars) {
     const button = document.createElement('button');
+    const info=familyInfo[car.family]??{name:car.name,en:car.code,tag:car.style};
     button.className = 'car-card';
     button.dataset.car = car.id;
     button.style.setProperty('--tier', tiers[car.tier]);
-    button.innerHTML = `<span class="rank">${car.tier}</span><span class="card-state"></span><canvas aria-hidden="true"></canvas><strong>${car.name}</strong><small>${car.code} · ${car.style}</small>`;
+    button.innerHTML = `<span class="family-code">${info.en}</span><span class="card-state"></span><canvas aria-hidden="true"></canvas><strong>${info.name}</strong><small>${info.tag}</small>`;
     button.onclick = () => {
       const preferred=car.family?Kart.carFamily(car.family).filter(model=>save.owned.includes(model.id)).at(-1):null;
       inspectCar(preferred?.id??(car.family?Kart.carFamily(car.family)[0].id:car.id));
@@ -1264,6 +1447,13 @@
     const id=event.target.closest('[data-generation]')?.dataset.generation;
     if(id) inspectCar(id);
   };
+  $('class-ladder').onclick=event=>{
+    const tier=event.target.closest('[data-class]')?.dataset.class;
+    if(!tier) return;
+    const model=Kart.carFamily(previewCar.family).find(car=>car.tier===tier);
+    if(model) inspectCar(model.id);
+  };
+  $('collection-all').onclick=showAllCars;
   $('compare-base').onchange=event=>{ comparison=event.target.value; renderCar(); };
   $('part-slots').onclick=async event=>{
     const button=event.target.closest('button');
@@ -1363,9 +1553,16 @@
     audioStart();
     if(musicChoice==='off') updateMusic();
   });
-  $('help').onclick = () => showDialog('help', '<h2 id="dialog-title">怎么开</h2><p>在车库选车，再选赛道。完赛可赚点数，解锁不同级别的车辆。</p><dl><div><dt>加速 / 刹车</dt><dd>↑ / ↓ 或 W / S</dd></div><div><dt>转向</dt><dd>← / → 或 A / D</dd></div><div><dt>漂移蓄气</dt><dd>按住 Shift + 转向</dd></div><div><dt>释放氮气</dt><dd>Space</dd></div><div><dt>暂停</dt><dd>Esc</dd></div></dl><p>带速度入弯并按住漂移键。车尾甩开后，短按反方向收住车尾，出弯时松开漂移键让车身回正。触屏可以同时按油门、方向和漂移。</p><div class="dialog-actions"><button class="primary" data-action="close">知道了</button></div>');
+  $('help').onclick = () => showDialog('help', '<h2 id="dialog-title">怎么开</h2><p>在车库选车，再选赛道。完赛可赚点数，解锁不同级别的车辆。</p><dl><div><dt>加速 / 刹车</dt><dd>↑ / ↓ 或 W / S</dd></div><div><dt>转向</dt><dd>← / → 或 A / D</dd></div><div><dt>漂移蓄气</dt><dd>按住 Shift + 转向</dd></div><div><dt>释放氮气</dt><dd>Space</dd></div><div><dt>回到赛道</dt><dd>R（+2 秒）</dd></div><div><dt>暂停</dt><dd>Esc</dd></div></dl><p>带速度入弯并按住漂移键。车尾甩开后，短按反方向收住车尾，出弯时松开漂移键让车身回正。触屏可以同时按油门、方向和漂移；在画面左右滑动也能转向。</p><div class="dialog-actions"><button class="primary" data-action="close">知道了</button></div>');
   dialog.addEventListener('click', event => {
     const action = event.target.closest('[data-action]')?.dataset.action;
+    const inspectId=event.target.closest('[data-inspect-car]')?.dataset.inspectCar;
+    if(inspectId) {
+      dialog.close();
+      if(page!=='garage-page') switchPage('garage-page',true);
+      inspectCar(inspectId);
+      return;
+    }
     const drill=event.target.closest('[data-lesson]')?.dataset.lesson;
     if(drill&&Object.hasOwn(lessons,drill)) {lesson=drill;startRace();return;}
     if(action==='training-menu') {leaveRace('garage-page');showTraining();return;}
@@ -1429,6 +1626,14 @@
       try { localStorage.setItem('apex-kart-throttle',mobileThrottle); } catch {}
       return;
     }
+    if(action==='steer') {
+      steerMode=steerMode==='drag'?'buttons':'drag';
+      syncSteerMode();
+      event.target.closest('button').textContent=`转向 · ${steerMode==='drag'?'滑动':'按键'}`;
+      try { localStorage.setItem('apex-kart-steer',steerMode); } catch {}
+      if(steerMode==='drag') flash('在画面左右滑动转向',1.6);
+      return;
+    }
     if(action==='quality') {
       const options=Object.keys(qualityLabels);
       const next=options[(options.indexOf(raceScreen.dataset.quality)+1)%options.length];
@@ -1448,6 +1653,7 @@
       comparisonRun.index=Number(event.target.closest('[data-index]').dataset.index);
       startRace();
     }
+    if(action==='reset-track') {resetToTrack();dialog.close();return;}
     if (action === 'tracks') leaveRace('track-page');
     if (action === 'garage') leaveRace('garage-page');
     if(action==='resume') {
@@ -1477,6 +1683,7 @@
   window.addEventListener('keydown', event => {
     if (!race || dialog.open) return;
     if (event.code === 'Escape') { event.preventDefault(); pauseRace(); return; }
+    if (event.code === 'KeyR' && !event.repeat) { event.preventDefault(); resetToTrack(); return; }
     if (event.code === 'KeyG' && !event.repeat) { toggleGhost(); return; }
     if (!drivingKeys.includes(event.code)) return;
     event.preventDefault();
@@ -1568,6 +1775,39 @@
     button.onpointercancel=release;
     button.onpointerup=release;
   });
+  const gestureLimit=()=>Math.max(96,Math.min(190,innerWidth*.36));
+  const gestureAllowed=()=>raceScreen.dataset.steer==='drag'&&race&&!paused&&!dialog.open&&race.phase==='racing';
+  raceScreen.addEventListener('pointerdown',event=>{
+    if(!gestureAllowed()||gesturePointer) return;
+    if(event.pointerType==='mouse') return;
+    if(event.target.closest?.('button,dialog,.touch-controls')) return;
+    gesturePointer={id:event.pointerId,x:event.clientX};
+    gestureTarget=0;
+    raceScreen.classList.add('gesture-active');
+    setGestureKnob(0);
+    try {raceScreen.setPointerCapture(event.pointerId);} catch {}
+    event.preventDefault();
+  },{passive:false});
+  raceScreen.addEventListener('pointermove',event=>{
+    if(!gesturePointer||event.pointerId!==gesturePointer.id) return;
+    const dx=event.clientX-gesturePointer.x;
+    const next=Math.abs(dx)<5?0:Math.max(-1,Math.min(1,dx/gestureLimit()));
+    gestureTarget=next;
+    setGestureKnob(next);
+    try {localStorage.setItem('apex-kart-gesture-seen','1');} catch {}
+    event.preventDefault();
+  },{passive:false});
+  const endGesture=event=>{
+    if(!gesturePointer||event.pointerId!==gesturePointer.id) return;
+    gesturePointer=null;
+    gestureTarget=0;
+    raceScreen.classList.remove('gesture-active');
+    setGestureKnob(0);
+  };
+  raceScreen.addEventListener('pointerup',endGesture);
+  raceScreen.addEventListener('pointercancel',endGesture);
+  raceScreen.addEventListener('lostpointercapture',endGesture);
+
   const resize = new ResizeObserver(() => {
     if (race) {
       queueRaceViewport();
@@ -1588,6 +1828,8 @@
     renderCadence.reset();
   });
   renderCredits();
+  $('sound').setAttribute('aria-pressed',String(soundEnabled));
+  $('sound').setAttribute('aria-label',soundEnabled?'关闭声音':'开启声音');
   showSaveStatus(saveMessages[startup.status]??'');
   switchPage(page);
   queueFrame();

@@ -9,7 +9,7 @@
         if(last===null) {last=now;return true;}
         const delta=(now-last)/1000;
         last=now;
-        if(delta>.35||delta<0) {pending=0;return false;}
+        if(delta>1.1||delta<0) {pending=0;return false;}
         pending+=delta;
         while(pending+1e-9>=step) {
           pending-=step;

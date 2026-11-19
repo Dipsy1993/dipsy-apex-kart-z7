@@ -8,6 +8,7 @@
     switchback:'赤脊九折 · 加速摇滚',
     caldera:'黑曜深谷 · 低音电子',
     ice:'冰牙绝壁 · 冷调合成器',
+    zootopia:'动物城追捕 · 都市放克',
   };
   const options=[['auto','随赛道'],...Object.entries(tracks),['off','关闭']];
   const audioCacheName='apex-z7-music-v1';

@@ -5,6 +5,7 @@
     sunset: { horizon: .57, asphalt: '#464348', lane: '#e1cdb2', gravel: '#89624c', soil: '#81573f', curb: ['#985445', '#cebdab'], rail: ['#695c55', '#b49c89'] },
     coast: { horizon: .641, asphalt: '#435058', lane: '#e2e6d9', gravel: '#69756b', soil: '#72735f', curb: ['#537e8a', '#dedfd3'], rail: ['#4f6671', '#b7ced0'] },
     city: { horizon: .672, asphalt: '#272d3a', lane: '#bccad6', gravel: '#414555', soil: '#56566a', curb: ['#4d5364', '#848995'], rail: ['#313b50', '#75879a'] },
+    zootopia: { horizon: .64, asphalt: '#343a50', lane: '#d9d6c8', gravel: '#5c5660', soil: '#4b535e', curb: ['#7b4d68', '#d8c6b0'], rail: ['#3d4d62', '#9fb3c8'] },
     switchback:{asphalt:'#49434b',lane:'#f3dab9',gravel:'#926251',soil:'#805246',curb:['#a84c46','#e9c5a0'],rail:['#744e4c','#d7a982'],hills:['#9290a9','#aa736c','#87554e']},
     caldera:{asphalt:'#3c3845',lane:'#efe1c7',gravel:'#62505d',soil:'#4c404d',curb:['#9d5049','#dfb58c'],rail:['#564653','#d59c7c'],hills:['#6d5b72','#524459','#443a4c']},
     ice:{asphalt:'#3d5267',lane:'#e7f4ff',gravel:'#91b1c7',soil:'#acc8d8',curb:['#638da5','#e7f3f5'],rail:['#698394','#d4f1fa'],hills:['#a1b9d1','#7497b6','#d5e8ef']},
@@ -65,7 +66,14 @@
       }
       return;
     }
-    if(track.id==='city') {
+    if(track.id==='city'||track.id==='zootopia') {
+      const zoo=track.id==='zootopia';
+      const zone=zoo?trackVisualCue(track,distance)?.zone:'';
+      const zooTint=zone==='tundra'?['#8fb6ca','#6f9cb4','#e3f4fb']:
+        zone==='sahara'?['#b47d50','#9a6740','#e2b47a']:
+        zone==='rainforest'?['#2f6354','#3f7862','#8fd0a7']:
+        zone==='rodentia'?['#5a4e6e','#6c5b80','#f0b8e4']:
+        zone==='skyline'?['#3a4a6b','#2f3c58','#9ec8ff']:['#495c50','#3e5147','#c8e69a'];
       const shift=distance*.12+Math.atan2(heading.fx,heading.fz)*w*.11;
       const open=trackVisualCue(track,distance)?.zone==='ramp';
       for(let i=0;i<26;i++) {
@@ -73,11 +81,15 @@
         const central=1-Math.abs(x/w-.5)*2;
         const roof=horizon-h*(.04+random(i*2.71)*.18)*(open?1-central*.62:1);
         const width=w*(.023+random(i*6.2)*.029);
-        ctx.fillStyle=i%2?'#2f3c58':'#394766';
+        ctx.fillStyle=zoo?zooTint[i%2]:i%2?'#2f3c58':'#394766';
         ctx.fillRect(x,roof+h*.018,width,horizon-roof+9);
         ctx.fillRect(x+width*.12,roof,width*.67,h*.025);
+        if(zoo&&(zone==='tundra'||zone==='rainforest')) {
+          ctx.fillStyle=zone==='tundra'?'#e7f6fd':'#76b68a';
+          ctx.fillRect(x+width*.08,roof,width*.76,h*.018);
+        }
         for(let y=roof+9;y<horizon;y+=11) if(random(i+y*.24)>.66) {
-          ctx.fillStyle=i%3?'#617ca6':'#a17f72';ctx.fillRect(x+width*.14,y,width*.57,1.4);
+          ctx.fillStyle=zoo?zooTint[2]:i%3?'#617ca6':'#a17f72';ctx.fillRect(x+width*.14,y,width*.57,1.4);
         }
       }
       return;
@@ -150,7 +162,7 @@
 
   function roadside(ctx, point, track, index) {
     if (point.z > 280 || point.y < -20) return;
-    const city = track.id === 'city';
+    const city = track.id === 'city'||track.id === 'zootopia';
     const bridge = point.bridge > .20;
     const side = index % 2 ? 1 : -1;
     const size = point.unit;
@@ -205,7 +217,7 @@
       pattern = ctx.createPattern(grain, 'repeat');
       patterns.set(ctx, pattern);
     }
-    const city = track.id === 'city';
+    const city = track.id === 'city'||track.id === 'zootopia';
     const points = [];
     let heading = 0;
     let worldX = 0;
@@ -308,7 +320,7 @@
         }
       }});
     }
-    const cityMarks=trackLandmarks.city;
+    const cityMarks=trackLandmarks[track.id]??trackLandmarks.city;
     if(city) for(const [phase,side,height] of [[cityMarks.offices-.013,1,31],[cityMarks.offices,-1,43],[cityMarks.offices+.014,1,37]]) {
       const [travel,point]=atLandmark(phase);
       if(!point||travel>330||travel<44) continue;
