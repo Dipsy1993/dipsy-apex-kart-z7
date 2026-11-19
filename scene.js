@@ -3887,6 +3887,22 @@ void main() {
   [.80,{sky:new It(0x2a2340),horizon:new It(0xffc46f),fog:new It(0x6d5150),ambient:new It(0xffdda8),sun:new It(0xffc37a),density:.0027,exposure:1.24,ambientI:1.7,sunI:1.55,night:.5}],
   [1,{sky:new It(0x2a2340),horizon:new It(0xffc46f),fog:new It(0x6d5150),ambient:new It(0xffdda8),sun:new It(0xffc37a),density:.0027,exposure:1.24,ambientI:1.7,sunI:1.55,night:.5}]
 ];
+let zooAnimated=[];
+function zooAnimate(time){
+  for(const item of zooAnimated){
+    if(item.kind==='steam'){
+      const q=1+Math.sin(time*1.4+item.phase)*.16;
+      item.mesh.scale.set(item.base[0]*q,item.base[1]*(1.08+.08*Math.sin(time*1.1+item.phase)),item.base[2]*q);
+    } else if(item.kind==='gondola'){
+      const offset=Math.sin(time*.24+item.phase)*item.amp;
+      item.mesh.position.copy(item.base).addScaledVector(item.forward,offset);
+    } else if(item.kind==='sway'){
+      item.mesh.rotation.z=item.base+Math.sin(time*item.speed+item.phase)*item.amp;
+    } else if(item.kind==='pulse'&&item.mat){
+      item.mat.emissiveIntensity=item.base+Math.sin(time*item.speed+item.phase)*item.amp;
+    }
+  }
+}
 function zooMood(world,track,distance,renderer){
   const p=((distance/track.length)%1+1)%1;
   let i=0;
@@ -3901,7 +3917,8 @@ function zooMood(world,track,distance,renderer){
   if(world.sunlight){world.sunlight.color.copy(a[1].sun).lerp(b[1].sun,t);world.sunlight.intensity=ha(a[1].sunI,b[1].sunI,t);}
   if(renderer)renderer.toneMappingExposure=ha(a[1].exposure,b[1].exposure,t);
 }
-function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.parentElement.clientWidth,s=i.parentElement.clientHeight;if(!n||!s)return!0;i.hidden||(i.hidden=!0),i.dataset.renderer!=="webgl"&&(i.dataset.renderer="webgl"),(e.race!==t||e.world!==Wc(t.track))&&s0(e,t);let{world:r,camera:o}=e,a=Math.round(n),c=Math.round(s),l=i.parentElement.dataset.quality;if(t.track.id==="zootopia")zooMood(r,t.track,t.distance,e.renderer);e.low=l==="low",e.lightEffects=Gc.matches&&l!=="high",e.skidMarks.visible=!e.low;let u=Math.min(e.low?.72:l==="balanced"?c0(e):a<900?1.45:1.36,window.devicePixelRatio||1);Hc(e.renderer,a,c,u),e.smoke.material.uniforms.scale.value=c*u*.8;let h=fn(t.elapsed-e.elapsed,0,.05);e.elapsed=t.elapsed;let f=kc(e.cars[0],t.track,t,h),p=e.brakeGlow;if(p.visible=!e.low&&t.braking&&((t.track.id==="city"||t.track.id==="zootopia")||Zh(t.track,t.distance)>.65),p.visible){let Y=Nn(t.track,t.distance-2.05);p.position.copy(ut(Y,t.x*oe,.064)),p.quaternion.copy(e.cars[0].shadow.quaternion)}let g=Yg(t),y=e.nitroGlow,m=t.wake,d=m?.burst>0?fn((m.burst/m.duration-.32)/.68,0,1):0,S=g.arming??0,M=Math.max(g.ignition,S*.42);i.dataset.wakeGuide=String(r0(e,t)),i.dataset.wakeBurst=(m?.burst??0).toFixed(2);let _=e.cars[0].accentLamp;_&&(_.emissiveIntensity=.58+(t.tailDeploy??0)*.43+Math.max(S,Math.min(1,g.strength))*(di.matches?.15:.72)+t.exitDrive*.47+d*.86);let b=d>M;if(y.visible=Math.max(d,M)>.045,y.visible){y.material.color.set(b?m.color:t.car.tailRig?.color??t.car.flagship?.accent??"#91dfff");let Y=Nn(t.track,t.distance-(b?3.5:2.45));y.position.copy(ut(Y,t.x*oe,.076)),y.quaternion.copy(e.cars[0].shadow.quaternion),y.scale.set(b?.9:1.18,b?2.3:1.34,1),y.material.opacity=(b?d*.73:M)*(di.matches?.4:.86)}if(e.exhaust.visible=g.strength>0,e.exhaust.visible)for(let Y of e.exhaust.children){let et=Y.userData.pipe;if(et.mount){let Qt=Kart.tailPipe(t.car,et,t.tailDeploy??0);Y.position.set(Qt.x,Qt.y,Qt.z),Y.quaternion.setFromUnitVectors(new N(0,1,0),new N(...Qt.direction).normalize())}let ot=di.matches?.48:.5+.5*Math.sin(t.elapsed*37+Y.userData.phase);Y.scale.y=(.88+ot*.17)*g.strength;let pt=Math.min(1,g.strength);Y.children[0].material.opacity=((Y.userData.primary?.67:.48)+ot*.21)*pt,Y.children[1].material.opacity=(.74+ot*.18)*pt;let Tt=Y.children[2];Tt.visible=l==="high"&&!di.matches&&g.phase==="steady",Tt.material.uniforms.clock.value=t.elapsed+Y.userData.phase,Tt.material.uniforms.strength.value=Y.userData.primary?.17:.09}i.dataset.flamePhase=g.phase,i.dataset.tailDeploy=(t.tailDeploy??0).toFixed(2),i.dataset.trackCue=qg(t.track,t.distance)?.zone??"",i.dataset.quality=l,i.dataset.pipes=String(t.car.pipes.length),i.dataset.emitters=String(e.exhaust.children.length),i.dataset.activeEmitters=t.boost>0?i.dataset.emitters:"0";let E=t.surface==="curb"?Math.sin(t.distance*2.6)*Math.min(.11,t.speed*.0016):0;e.cars[0].body.position.y=E*.38;for(let Y of e.cars[0].wheels){let ot=-Math.sign(Y.axle.position.x)===Math.sign(t.x)?E*(Y.front?1:.65):0;Y.axle.position.y=Y.radius+ot}for(let[Y,et]of t.opponents.entries()){let ot=e.cars[Y+1];if(ot.root.visible=ot.shadow.visible=!et.retired,!et.retired){let pt=Math.abs(Kart.wrap(et.distance-t.distance+t.track.length/2,t.track.length)-t.track.length/2),Tt=!!(ot.distant&&l!=="high"&&pt>(ot.distant.visible?28:35));kc(ot,t.track,et,h,Tt);let Qt=et.wake?.burst??0;ot.accentLamp&&(ot.accentLamp.emissiveIntensity=.58+(Qt>0?Qt*(di.matches?.34:1.2):0))}}if(e.ghost){let Y=Kart.ghostAt(t);e.ghost.root.visible=!!(Y&&Math.abs(Y.distance-t.distance)<410),e.ghost.root.visible&&(e.ghost.material.opacity=ha(.075,.31,fn(Math.hypot(Y.distance-t.distance,(Y.x-t.x)*oe)/5,0,1)),kc(e.ghost,t.track,Y,h))}jh.set(f.point.fx,0,f.point.fz),o0(e,t,f,h),a0(e,t,h);let R=fn(t.speed/100,0,1),I=t.boostChain?ha(.22,1,fn((t.boostDuration-t.boost)/.24,0,1)):1,T=di.matches?0:t.boost>0?I:m?.burst>0?.35:S*.28;e.boostPull=ha(e.boostPull,T,1-Math.exp(-h*6));let w=a<c,D=(w?65:55)+R*8+e.boostPull*6;e.portrait!==w?e.fov=D:e.fov=ha(e.fov,D,h>0?1-Math.exp(-h*6):.15),e.portrait=w,o.fov=e.fov,o.aspect=a/c;let C=fn((c/a-1)*2.65,0,4),P=Nn(t.track,t.distance-9.65-C-R*.8-e.boostPull*.9),U=fn(t.x*(w?.86:.74),-P.rail+.33,P.rail-.33);Kh.copy(ut(P,U*oe,(w?5.4:4.9)+(di.matches?0:E*.76))),o.position.copy(Kh);let B=Nn(t.track,t.distance+18+R*10);if($h.copy(ut(B,t.x*oe*(w?.46:.31),w?1.22:1.35)),o.lookAt($h),o.updateProjectionMatrix(),w){o.updateMatrixWorld(),Oi.copy(f.pos),Oi.y+=.58,Oi.project(o);let Y=Math.tan(o.fov*Math.PI/360),et=Y*o.aspect,ot=fn(Oi.x,-.27,.27),pt=fn(Oi.y,-.6,-.32);o.rotateY(Math.atan(ot*et)-Math.atan(Oi.x*et)),o.rotateX(Math.atan(Oi.y*Y)-Math.atan(pt*Y))}let z=Math.max(t.hit,t.railHit),K=f.point.bank*.3-t.lateral*.018+(di.matches?0:Math.sin(t.elapsed*68)*z*.13);o.rotateZ(fn(K,w?-.042:-.075,w?.042:.075)),r.sky.position.copy(o.position);for(let{mesh:Y,range:et}of r.scene.userData.detailBatches??[]){let ot=et+(Y.visible?25:0);Y.visible=!e.lightEffects||Y.boundingSphere.center.distanceToSquared(o.position)<ot*ot}if(r.scene.userData.water){let Y=r.scene.userData.water.material.uniforms;Y.clock.value=t.elapsed,Y.low.value=+(l!=="high")}let H=Zh(t.track,t.distance);return t.track.id==="sunset"&&(r.sunlight.intensity=3.55-H*3.25,r.ambient.intensity=1.9+H*.25),i.dataset.shade=H.toFixed(2),e.renderer.render(r.scene,o),!0}function ZootopiaProps(scene,track){
+function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.parentElement.clientWidth,s=i.parentElement.clientHeight;if(!n||!s)return!0;i.hidden||(i.hidden=!0),i.dataset.renderer!=="webgl"&&(i.dataset.renderer="webgl"),(e.race!==t||e.world!==Wc(t.track))&&s0(e,t);let{world:r,camera:o}=e,a=Math.round(n),c=Math.round(s),l=i.parentElement.dataset.quality;if(t.track.id==="zootopia")zooMood(r,t.track,t.distance,e.renderer);if(t.track.id==="zootopia")zooAnimate(t.elapsed);e.low=l==="low",e.lightEffects=Gc.matches&&l!=="high",e.skidMarks.visible=!e.low;let u=Math.min(e.low?.72:l==="balanced"?c0(e):a<900?1.45:1.36,window.devicePixelRatio||1);Hc(e.renderer,a,c,u),e.smoke.material.uniforms.scale.value=c*u*.8;let h=fn(t.elapsed-e.elapsed,0,.05);e.elapsed=t.elapsed;let f=kc(e.cars[0],t.track,t,h),p=e.brakeGlow;if(p.visible=!e.low&&t.braking&&((t.track.id==="city"||t.track.id==="zootopia")||Zh(t.track,t.distance)>.65),p.visible){let Y=Nn(t.track,t.distance-2.05);p.position.copy(ut(Y,t.x*oe,.064)),p.quaternion.copy(e.cars[0].shadow.quaternion)}let g=Yg(t),y=e.nitroGlow,m=t.wake,d=m?.burst>0?fn((m.burst/m.duration-.32)/.68,0,1):0,S=g.arming??0,M=Math.max(g.ignition,S*.42);i.dataset.wakeGuide=String(r0(e,t)),i.dataset.wakeBurst=(m?.burst??0).toFixed(2);let _=e.cars[0].accentLamp;_&&(_.emissiveIntensity=.58+(t.tailDeploy??0)*.43+Math.max(S,Math.min(1,g.strength))*(di.matches?.15:.72)+t.exitDrive*.47+d*.86);let b=d>M;if(y.visible=Math.max(d,M)>.045,y.visible){y.material.color.set(b?m.color:t.car.tailRig?.color??t.car.flagship?.accent??"#91dfff");let Y=Nn(t.track,t.distance-(b?3.5:2.45));y.position.copy(ut(Y,t.x*oe,.076)),y.quaternion.copy(e.cars[0].shadow.quaternion),y.scale.set(b?.9:1.18,b?2.3:1.34,1),y.material.opacity=(b?d*.73:M)*(di.matches?.4:.86)}if(e.exhaust.visible=g.strength>0,e.exhaust.visible)for(let Y of e.exhaust.children){let et=Y.userData.pipe;if(et.mount){let Qt=Kart.tailPipe(t.car,et,t.tailDeploy??0);Y.position.set(Qt.x,Qt.y,Qt.z),Y.quaternion.setFromUnitVectors(new N(0,1,0),new N(...Qt.direction).normalize())}let ot=di.matches?.48:.5+.5*Math.sin(t.elapsed*37+Y.userData.phase);Y.scale.y=(.88+ot*.17)*g.strength;let pt=Math.min(1,g.strength);Y.children[0].material.opacity=((Y.userData.primary?.67:.48)+ot*.21)*pt,Y.children[1].material.opacity=(.74+ot*.18)*pt;let Tt=Y.children[2];Tt.visible=l==="high"&&!di.matches&&g.phase==="steady",Tt.material.uniforms.clock.value=t.elapsed+Y.userData.phase,Tt.material.uniforms.strength.value=Y.userData.primary?.17:.09}i.dataset.flamePhase=g.phase,i.dataset.tailDeploy=(t.tailDeploy??0).toFixed(2),i.dataset.trackCue=qg(t.track,t.distance)?.zone??"",i.dataset.quality=l,i.dataset.pipes=String(t.car.pipes.length),i.dataset.emitters=String(e.exhaust.children.length),i.dataset.activeEmitters=t.boost>0?i.dataset.emitters:"0";let E=t.surface==="curb"?Math.sin(t.distance*2.6)*Math.min(.11,t.speed*.0016):0;e.cars[0].body.position.y=E*.38;for(let Y of e.cars[0].wheels){let ot=-Math.sign(Y.axle.position.x)===Math.sign(t.x)?E*(Y.front?1:.65):0;Y.axle.position.y=Y.radius+ot}for(let[Y,et]of t.opponents.entries()){let ot=e.cars[Y+1];if(ot.root.visible=ot.shadow.visible=!et.retired,!et.retired){let pt=Math.abs(Kart.wrap(et.distance-t.distance+t.track.length/2,t.track.length)-t.track.length/2),Tt=!!(ot.distant&&l!=="high"&&pt>(ot.distant.visible?28:35));kc(ot,t.track,et,h,Tt);let Qt=et.wake?.burst??0;ot.accentLamp&&(ot.accentLamp.emissiveIntensity=.58+(Qt>0?Qt*(di.matches?.34:1.2):0))}}if(e.ghost){let Y=Kart.ghostAt(t);e.ghost.root.visible=!!(Y&&Math.abs(Y.distance-t.distance)<410),e.ghost.root.visible&&(e.ghost.material.opacity=ha(.075,.31,fn(Math.hypot(Y.distance-t.distance,(Y.x-t.x)*oe)/5,0,1)),kc(e.ghost,t.track,Y,h))}jh.set(f.point.fx,0,f.point.fz),o0(e,t,f,h),a0(e,t,h);let R=fn(t.speed/100,0,1),I=t.boostChain?ha(.22,1,fn((t.boostDuration-t.boost)/.24,0,1)):1,T=di.matches?0:t.boost>0?I:m?.burst>0?.35:S*.28;e.boostPull=ha(e.boostPull,T,1-Math.exp(-h*6));let w=a<c,D=(w?65:55)+R*8+e.boostPull*6;e.portrait!==w?e.fov=D:e.fov=ha(e.fov,D,h>0?1-Math.exp(-h*6):.15),e.portrait=w,o.fov=e.fov,o.aspect=a/c;let C=fn((c/a-1)*2.65,0,4),P=Nn(t.track,t.distance-9.65-C-R*.8-e.boostPull*.9),U=fn(t.x*(w?.86:.74),-P.rail+.33,P.rail-.33);Kh.copy(ut(P,U*oe,(w?5.4:4.9)+(di.matches?0:E*.76))),o.position.copy(Kh);let B=Nn(t.track,t.distance+18+R*10);if($h.copy(ut(B,t.x*oe*(w?.46:.31),w?1.22:1.35)),o.lookAt($h),o.updateProjectionMatrix(),w){o.updateMatrixWorld(),Oi.copy(f.pos),Oi.y+=.58,Oi.project(o);let Y=Math.tan(o.fov*Math.PI/360),et=Y*o.aspect,ot=fn(Oi.x,-.27,.27),pt=fn(Oi.y,-.6,-.32);o.rotateY(Math.atan(ot*et)-Math.atan(Oi.x*et)),o.rotateX(Math.atan(Oi.y*Y)-Math.atan(pt*Y))}let z=Math.max(t.hit,t.railHit),K=f.point.bank*.3-t.lateral*.018+(di.matches?0:Math.sin(t.elapsed*68)*z*.13);o.rotateZ(fn(K,w?-.042:-.075,w?.042:.075)),r.sky.position.copy(o.position);for(let{mesh:Y,range:et}of r.scene.userData.detailBatches??[]){let ot=et+(Y.visible?25:0);Y.visible=!e.lightEffects||Y.boundingSphere.center.distanceToSquared(o.position)<ot*ot}if(r.scene.userData.water){let Y=r.scene.userData.water.material.uniforms;Y.clock.value=t.elapsed,Y.low.value=+(l!=="high")}let H=Zh(t.track,t.distance);return t.track.id==="sunset"&&(r.sunlight.intensity=3.55-H*3.25,r.ambient.intensity=1.9+H*.25),i.dataset.shade=H.toFixed(2),e.renderer.render(r.scene,o),!0}function ZootopiaProps(scene,track){
+  zooAnimated=[];
   function label(title,sub,accent){
     const canvas=document.createElement('canvas');
     canvas.width=640;canvas.height=160;
@@ -3961,6 +3978,52 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
     sign.position.copy(ut(road,0,8.16)).addScaledVector(new N(road.fx,0,road.fz),-.62);
     sign.rotation.y=yaw+Math.PI;scene.add(sign);
   }
+  function kitWindows(road,side,lateral,width,depth,levels,color,yaw){
+    const inner=lateral-side*(width/2+.05);
+    for(let l=0;l<levels;l++) add(new un(.07,.48,depth*.7),color,ut(road,inner,1.65+l*1.55),yaw);
+  }
+  function iceKit(d,side){
+    const road=Pe(track,d),yaw=Math.atan2(road.fx,road.fz),lat=side*(road.rail*oe+20);
+    add(new un(12,6.8,12),'#86b4c6',ut(road,lat,3.4),yaw);
+    add(new un(9.5,2.4,9.5),'#a9d6e6',ut(road,lat,7.8),yaw);
+    add(new un(12.9,.35,12.9),'#e8f8ff',ut(road,lat,7.05),yaw);
+    add(new un(13,1.3,13),'#d9f2fb',ut(road,lat,.55),yaw);
+    kitWindows(road,side,lat,12,12,3,'#8fe8ff',yaw);
+    for(let i=0;i<4;i++) add(new Cn(.09,.13,1.5,5),'#e8fbff',ut(road,lat-side*(5.9),1.2+i*1.4),yaw);
+    add(new un(2.2,1.0,2.2),'#5b7c91',ut(road,lat+side*7,8.9),yaw);
+  }
+  function sandKit(d,side){
+    const road=Pe(track,d),yaw=Math.atan2(road.fx,road.fz),lat=side*(road.rail*oe+20);
+    add(new un(11,5.4,11),'#b97a4c',ut(road,lat,2.7),yaw);
+    add(new un(11.9,.4,11.9),'#e2b47a',ut(road,lat,5.4),yaw);
+    add(new un(.9,.12,9.6),d%2?'#d9a35f':'#b55c4d',ut(road,lat-side*5.6,3.5),yaw);
+    kitWindows(road,side,lat,11,11,2,'#ffd28a',yaw);
+    add(new Cn(.36,.5,2.4,6),'#8c6242',ut(road,lat+side*6.6,1.2),yaw);
+    add(new Cn(1.1,1.1,.24,8),'#d9a35f',ut(road,lat+side*6.6,4.7),yaw);
+    add(new un(.18,2.0,.3),'#ffb45e',ut(road,lat-side*5.6,2.4),yaw);
+  }
+  function treeKit(d,side){
+    const road=Pe(track,d),yaw=Math.atan2(road.fx,road.fz),lat=side*(road.rail*oe+19);
+    add(new Cn(1.2,1.7,13,7),'#4c3a2a',ut(road,lat,6.5),yaw);
+    add(new wi(4.2,8,6),'#2f7a4f',ut(road,lat,13),yaw,[1.5,.82,1.5]);
+    add(new wi(2.5,7,5),'#3d9460',ut(road,lat-side*4,9.5),yaw,[1.3,.7,1.3]);
+    add(new Cn(.08,.12,5.5,5),'#6ca86a',ut(road,lat-side*2.4,6.8),yaw);
+    add(new un(4.2,.24,4.2),'#5a4a34',ut(road,lat+side*2.2,4.4),yaw);
+  }
+  function cityKit(d,side){
+    const road=Pe(track,d),yaw=Math.atan2(road.fx,road.fz),lat=side*(road.rail*oe+20);
+    add(new un(8.2,15,8.2),'#3f4e6e',ut(road,lat,7.5),yaw);
+    add(new un(6.6,5.2,6.6),'#5d4c73',ut(road,lat,17.6),yaw);
+    add(new un(8.8,.4,8.8),'#a8d8ff',ut(road,lat,15.2),yaw);
+    kitWindows(road,side,lat,8.2,8.2,5,'#ffd9a0',yaw);
+    add(new Cn(.12,.12,4.2,5),'#a8d8ff',ut(road,lat,20.6),yaw);
+  }
+  function oasisHut(d,side){
+    const road=Pe(track,d),yaw=Math.atan2(road.fx,road.fz),lat=side*(road.rail*oe+15);
+    add(new Cn(.18,.24,4.6,6),'#76583c',ut(road,lat,2.3),yaw);
+    add(new Cn(2.6,2.6,.45,8),'#a88a55',ut(road,lat,4.6),yaw);
+    add(new un(3.4,1.8,.3),'#d9c38b',ut(road,lat-side*1.6,1.8),yaw);
+  }
   // Zootopia: Hot Pursuit — public ride route reconstructed from the
   // official attraction description and ride-through reports:
   // ZPD -> Tundratown -> Sahara Square -> Mystic Springs Oasis ->
@@ -4005,34 +4068,11 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
   }
   // District silhouettes: large, low-detail masses outside the rails so each
   // biome reads at speed without blocking the driving line.
-  for(let d=track.length*.085;d<track.length*.30;d+=48){
-    const road=Pe(track,d),side=d%96<48?1:-1,yaw=Math.atan2(road.fx,road.fz);
-    add(new un(13,6.5,18),'#86aebf',ut(road,side*(road.rail*oe+17),3.2),yaw);
-    add(new un(15,.6,20),'#d9eff8',ut(road,side*(road.rail*oe+17),6.7),yaw);
-    add(new Cn(.9,1.2,5.5,6),'#bfe8f5',ut(road,side*(road.rail*oe+13),2.7),yaw);
-  }
-  for(let d=track.length*.33;d<track.length*.43;d+=46){
-    const road=Pe(track,d),side=d%92<46?1:-1,yaw=Math.atan2(road.fx,road.fz);
-    add(new un(12,5,16),'#b97a4c',ut(road,side*(road.rail*oe+17),2.5),yaw);
-    add(new un(13,.4,17),side>0?'#e2b47a':'#d9a35f',ut(road,side*(road.rail*oe+17),5.2),yaw);
-    add(new Cn(.16,.22,5.2,6),'#8c6242',ut(road,side*(road.rail*oe+13),2.6),yaw);
-  }
-  for(let d=track.length*.465;d<track.length*.545;d+=34){
-    const road=Pe(track,d),side=d%68<34?1:-1,yaw=Math.atan2(road.fx,road.fz);
-    add(new un(14,2.8,10),'#6c6258',ut(road,side*(road.rail*oe+16),1.4),yaw);
-    add(new Cn(.16,.22,5.5,6),'#76583c',ut(road,side*(road.rail*oe+12),2.7),yaw);
-  }
-  for(let d=track.length*.59;d<track.length*.79;d+=44){
-    const road=Pe(track,d),side=d%88<44?1:-1,yaw=Math.atan2(road.fx,road.fz);
-    add(new Cn(1.1,1.5,11,7),'#4c3a2a',ut(road,side*(road.rail*oe+16),5.5),yaw);
-    add(new wi(3.3,8,6),'#2f7a4f',ut(road,side*(road.rail*oe+16),11.2),yaw,[1.6,.9,1.6]);
-  }
-  for(let d=track.length*.825;d<track.length*.915;d+=38){
-    const road=Pe(track,d),side=d%76<38?1:-1,yaw=Math.atan2(road.fx,road.fz);
-    add(new un(9,14,9),'#3f4e6e',ut(road,side*(road.rail*oe+18),7),yaw);
-    add(new un(9.3,.35,9.3),'#a8d8ff',ut(road,side*(road.rail*oe+18),14.1),yaw);
-    add(new un(2.2,5.6,2.2),'#5d4c73',ut(road,side*(road.rail*oe+24),2.8),yaw);
-  }
+  for(let d=track.length*.085;d<track.length*.30;d+=58){iceKit(d,d%116<58?1:-1);}
+  for(let d=track.length*.33;d<track.length*.43;d+=52){sandKit(d,d%104<52?1:-1);}
+  for(let d=track.length*.465;d<track.length*.545;d+=38){oasisHut(d,d%76<38?1:-1);}
+  for(let d=track.length*.59;d<track.length*.79;d+=54){treeKit(d,d%108<54?1:-1);}
+  for(let d=track.length*.825;d<track.length*.915;d+=44){cityKit(d,d%88<44?1:-1);}
 
   // A denser snow-bank corridor makes the first cold section readable at speed.
   for(let d=track.length*.064;d<track.length*.145;d+=10){
@@ -4111,6 +4151,7 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
       s.position.copy(ut(road,side*(road.rail*oe+8),1.0+i*.22));
       s.position.addScaledVector(new N(road.fx,0,road.fz),(i-3)*1.6);
       s.scale.set(1.2+i*.18,1.6,.9);scene.add(s);
+      zooAnimated.push({kind:'steam',mesh:s,base:[1.2+i*.18,1.6,.9],phase:i});
     }
     const sign=new Ht(new We(5.2,1.1),new $t({map:label('MYSTIC SPRINGS','神秘泉绿洲 · 温泉','#6fe3d1'),transparent:true,side:Ie}));
     sign.position.copy(ut(road,side*(road.rail*oe+3.0),4.8));
@@ -4136,6 +4177,7 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
     add(new un(span,.08,.08),'#3f4541',ut(road,0,12.0),yaw);
     add(new un(.055,.055,34),'#3f4541',ut(road,0,12.0),yaw);
     const gondola=add(new un(1.8,1.5,1.8),'#c65b4a',ut(road,0,10.35),yaw);
+    zooAnimated.push({kind:'gondola',mesh:gondola,base:gondola.position.clone(),forward:new N(road.fx,0,road.fz),amp:5.5,phase:1.7});
     add(new un(.08,1.4,.08),'#3f4541',gondola.position.clone().setY(gondola.position.y+1.5),yaw);
     add(new un(1.9,.12,1.9),'#7a352e',gondola.position.clone().setY(gondola.position.y+.82),yaw);
     const sign=new Ht(new We(4.6,1.0),new $t({map:label('AERIAL TRAM','雨林区 · 空中缆车','#78d69b'),transparent:true,side:Ie}));
@@ -4174,6 +4216,7 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
     for(const side of [-1,1]) for(const height of [2.6,4.2,5.8]){
       const lamp=add(new Cn(.18,.32,1.8,6),'#c9a7ff',ut(stage,side*(stage.rail*oe+7),height),stageYaw+side*.4);
       lamp.rotation.z=side*.55;
+      zooAnimated.push({kind:'sway',mesh:lamp,base:side*.55,speed:1.9,phase:height,amp:.22});
     }
     for(let i=0;i<8;i++){
       const color=['#ffb45e','#e6b8ff','#78d69b','#8fcfff'][i%4];

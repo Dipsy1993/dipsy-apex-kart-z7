@@ -19,7 +19,7 @@ python -m http.server 8765 --bind 127.0.0.1
 1. 备份旧文件；
 2. 用本目录内容覆盖仓库根目录（保留 `.nojekyll`）；
 3. 确认 `index.html` 中所有资源都是 `?v=11`；
-4. 确认 `offline-worker.js` 的 `cacheName` 是 `apex-z7-playtest-v15`；
+4. 确认 `offline-worker.js` 的 `cacheName` 是 `apex-z7-playtest-v16`；
 5. 提交并 push 到 `main`；
 6. 等待 GitHub Pages 构建后，用无痕窗口打开并强制刷新。
 

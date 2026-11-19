@@ -190,10 +190,20 @@
     ctx.lineCap='round';ctx.lineJoin='round';
     if(track.id==='zootopia'){
       const colorAt=phase=>zooMapZones.find(([from,to])=>phase>=from&&phase<to)?.[2]??'#ffd36e';
+      const current=((race.distance/track.length)%1+1)%1;
+      const currentColor=colorAt(current);
       for(let i=0;i<route.points.length-1;i++){
         const phase=i/(route.points.length-1);
+        const active=colorAt(phase)===currentColor;
         ctx.beginPath();ctx.moveTo(x(route.points[i]),y(route.points[i]));ctx.lineTo(x(route.points[i+1]),y(route.points[i+1]));
-        ctx.strokeStyle=colorAt(phase);ctx.lineWidth=3.1;ctx.stroke();
+        ctx.strokeStyle=colorAt(phase);ctx.lineWidth=active?4.1:3.0;
+        ctx.shadowBlur=active?6:0;ctx.shadowColor=colorAt(phase);ctx.stroke();
+      }
+      ctx.shadowBlur=0;
+      for(const [phase,color] of [[.018,'#8fcfff'],[.18,'#8fe8ff'],[.335,'#ffb45e'],[.49,'#6fe3d1'],[.66,'#78d69b'],[.965,'#ffd36e']]){
+        const p=Kart.courseAt(track,track.length*phase);
+        ctx.beginPath();ctx.arc(x(p),y(p),1.9,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+        ctx.strokeStyle='#0d1318';ctx.lineWidth=1;ctx.stroke();
       }
       const start=route.points[0];
       ctx.beginPath();ctx.arc(x(start),y(start),2.4,0,Math.PI*2);ctx.fillStyle='#f4f7ef';ctx.fill();
@@ -564,6 +574,15 @@
     note.connect(gain).connect(audio.destination);
     note.start(at);
     note.stop(at + duration);
+  }
+
+  const zooZoneNotes={
+    '动物城警局':[392,523],'冰川镇':[659,784],'撒哈拉广场':[349,466],
+    '神秘泉绿洲':[523,659],'雨林区':[440,587],'稀树草原中心':[523,659,784],
+  };
+  function zooZoneSound(zone){
+    const notes=zooZoneNotes[zone];
+    if(notes) notes.forEach((f,i)=>beep(f,.14,i*.07));
   }
 
   function engineSound() {
@@ -1200,7 +1219,7 @@
       $('race-track').style.color=zooZoneColorByName[zone]??'';
       if(zone!==lastZooZone) {
         lastZooZone=zone;
-        if(race.phase==='racing') flash(zone,1.25);
+        if(race.phase==='racing') { flash(zone,1.25); zooZoneSound(zone); }
       }
     }
     $('place').textContent = cupPractice?'练习':sectorPractice?'重练':lesson?'训练':comparisonRun ? (comparisonRun.courseId?race.car.tier:(comparisonRun.index?'试驾 B':'试驾 A')) : quickDrive||trialCar ? '试驾' : race.mode === 'solo' ? '计时' : race.place;
