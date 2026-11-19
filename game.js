@@ -121,6 +121,9 @@
   let ambientGain = null;
   let ambientFilter = null;
   let ambientNoise = null;
+  let zooPadGain = null;
+  let zooPadFilter = null;
+  let zooPadOsc = [];
   let prevCount = 4;
   let last = 0;
   let lastMap=-1;
@@ -515,6 +518,13 @@
       ambientGain=audio.createGain();ambientGain.gain.value=0;
       ambientNoise.connect(ambientFilter).connect(ambientGain).connect(audio.destination);
       ambientNoise.start();
+      zooPadFilter=audio.createBiquadFilter();zooPadFilter.type='lowpass';zooPadFilter.frequency.value=1200;
+      zooPadGain=audio.createGain();zooPadGain.gain.value=0;
+      zooPadFilter.connect(zooPadGain).connect(audio.destination);
+      for(let i=0;i<3;i++){
+        const osc=audio.createOscillator();osc.type=i===2?'triangle':'sine';osc.frequency.value=130.81*(i+1);
+        osc.connect(zooPadFilter);osc.start();zooPadOsc.push(osc);
+      }
       music=KartMusic.make(audio,()=>{
         const status=dialog.querySelector('[data-music-status]');
         if(status) status.textContent=navigator.onLine===false?'这首曲目尚未缓存，离线仍可比赛。':'曲目暂时无法播放，仍可继续比赛。';
@@ -609,6 +619,20 @@
     ambientGain.gain.setTargetAtTime(soundEnabled?p.gain:0,now,.65);
     ambientFilter.frequency.setTargetAtTime(p.freq,now,.8);
     ambientFilter.Q.setTargetAtTime(p.q,now,.8);
+  }
+  const zooChords={
+    '动物城警局':[130.81,196.00,261.63],
+    '冰川镇':[146.83,220.00,293.66],
+    '撒哈拉广场':[110.00,164.81,220.00],
+    '神秘泉绿洲':[174.61,261.63,349.23],
+    '雨林区':[123.47,185.00,246.94],
+    '稀树草原中心':[130.81,196.00,261.63],
+  };
+  function zooMusicLayer(zone){
+    if(!audio||audio.state!=='running'||!zooPadGain||!zooPadOsc.length) return;
+    const chord=zooChords[zone]??[130.81,196,261.63],now=audio.currentTime;
+    chord.forEach((f,i)=>zooPadOsc[i]?.frequency.setTargetAtTime(f,now,1.1));
+    zooPadGain.gain.setTargetAtTime(soundEnabled?0.0065:0,now,1.1);
   }
 
   function engineSound() {

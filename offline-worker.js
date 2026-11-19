@@ -1,12 +1,12 @@
 'use strict';
 
-const cacheName = 'apex-z7-playtest-v18';
+const cacheName = 'apex-z7-playtest-v20';
 const audioCacheName = 'apex-z7-music-v1';
 const homePage = self.registration.scope;
 const audioDirectory = new URL('music/', homePage).href;
 const appFiles = [
-  './', 'style.css?v=18', 'kart.js?v=18', 'track-visual.js?v=18', 'scene.js?v=18',
-  'render.js?v=18', 'music.js', 'session.js?v=18', 'playtest.js?v=18', 'game.js?v=18', 'manifest.webmanifest','favicon.svg','favicon.ico','icon-192.png','icon-512.png'
+  './', 'style.css?v=20', 'kart.js?v=20', 'track-visual.js?v=20', 'scene.js?v=20',
+  'render.js?v=20', 'music.js', 'session.js?v=20', 'playtest.js?v=20', 'game.js?v=20', 'manifest.webmanifest','favicon.svg','favicon.ico','icon-192.png','icon-512.png'
 ].map(file => new URL(file, self.registration.scope).href);
 const cachedURLs = new Set(appFiles);
 
