@@ -71,9 +71,10 @@
       const zone=zoo?trackVisualCue(track,distance)?.zone:'';
       const zooTint=zone==='tundra'?['#8fb6ca','#6f9cb4','#e3f4fb']:
         zone==='sahara'?['#b47d50','#9a6740','#e2b47a']:
+        zone==='oasis'?['#3f8d83','#4f9b8f','#e8d58d']:
         zone==='rainforest'?['#2f6354','#3f7862','#8fd0a7']:
-        zone==='rodentia'?['#5a4e6e','#6c5b80','#f0b8e4']:
-        zone==='skyline'?['#3a4a6b','#2f3c58','#9ec8ff']:['#495c50','#3e5147','#c8e69a'];
+        zone==='savanna'?['#6f7b4b','#7f8c55','#e7d98a']:
+        zone==='zpd'?['#4b6380','#566d8a','#d7e7f5']:['#495c50','#3e5147','#c8e69a'];
       const shift=distance*.12+Math.atan2(heading.fx,heading.fz)*w*.11;
       const open=trackVisualCue(track,distance)?.zone==='ramp';
       for(let i=0;i<26;i++) {

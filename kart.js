@@ -22,15 +22,15 @@
       sky:['#4277a4','#d0e9ef'],challenge:{preview:.365,width:1.01,margin:.22,corner:.93,sectors:[.26,.48,.76,1],
         sections:[[.32,.43,.32,.23],[.64,.76,.28,.19]],landmarks:[[.24,'ice'],[.36,'ice'],[.67,'ice'],[.75,'ice']]}},
     {id:'zootopia',name:'动物城·热力追踪',code:'ZOOTOPIA HOT PURSUIT',level:'专家',
-      tip:'冰川镇 · 撒哈拉广场 · 雨林区 · 全城追捕',length:3480,color:'#ffb45e',
+      tip:'ZPD 出发 · 冰川镇 → 撒哈拉广场 → 神秘泉绿洲 → 雨林区 → 全城派对',length:3480,color:'#ffb45e',
       sky:['#111b3a','#7f4f78','#ffb27c'],road:['#2b3042','#343a50'],ground:['#35454f','#40525a'],
-      bends:[0,.9,1.45,.55,-.55,-1.45,-.9,.65,1.6,-.45,-1.5,-.85,.6,1.35,.35,-.75,0]},
+      bends:[0,.38,1.35,.82,-.35,-1.18,-.55,.44,1.26,.61,-.82,-1.45,-.72,.53,1.22,.48,-.55,0]},
   ];
   const trackLandmarks={
     city:{offices:.623,service:.693,interchange:.867},
     sunset:{strata:.079,arch:.113},
     coast:{headland:.265,bridgeMouth:.355,bridgeFirst:.407,bridgeLast:.526},
-    zootopia:{offices:.72,service:.93,interchange:.955},
+    zootopia:{offices:.78,service:.94,interchange:.965},
   };
   const courseLighting={
     city:{
@@ -50,11 +50,11 @@
       signs:[[675,728,1],[861,944,1]],
     },
     zootopia:{
-      start:120,end:3380,zones:[[120,'savanna'],[540,'tundra'],[1160,'sahara'],[1900,'rainforest'],[2560,'rodentia'],[2900,'skyline']],
-      lamps:[{from:150,to:560,spacing:34,warm:true},{from:650,to:1180,spacing:42,warm:true},
-        {from:1220,to:1560,spacing:30,warm:false},{from:1700,to:2200,spacing:26,warm:false},
-        {from:2280,to:2620,spacing:22,warm:true},{from:2700,to:3260,spacing:36,warm:false}],
-      signs:[[340,430,1],[820,930,-1],[1380,1480,1],[1960,2070,-1],[2520,2630,1],[3020,3140,-1]],
+      start:70,end:3410,zones:[[0,'zpd'],[140,'tundra'],[1078,'sahara'],[1530,'oasis'],[1948,'rainforest'],[2784,'savanna']],
+      lamps:[{from:70,to:180,spacing:24,warm:true},{from:200,to:1000,spacing:34,warm:false},
+        {from:1100,to:1480,spacing:30,warm:true},{from:1550,to:1900,spacing:22,warm:true},
+        {from:1990,to:2700,spacing:21,warm:false},{from:2800,to:3360,spacing:27,warm:true}],
+      signs:[[260,360,-1],[1150,1260,1],[1600,1700,-1],[2100,2200,1],[3000,3120,1]],
     },
   };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -73,7 +73,8 @@
     const lamps=route.lamps.find(lamp=>meters>=lamp.from&&meters<lamp.to);
     const light=lamps ? .24+.76*(.5+.5*Math.cos((meters-lamps.from)/lamps.spacing*Math.PI*2))**2 : 0;
     const sign=route.signs.find(([from,apex])=>meters>=from&&meters<=apex+12);
-    const zone=route.zones.find(([from])=>meters>=from)?.[1]??'approach';
+    let zone='approach';
+    for(const [from,id] of route.zones) if(meters>=from) zone=id;
     return {zone,light,warm:Boolean(lamps?.warm),turn:sign?.[2]??0};
   }
   const setups = [
@@ -660,7 +661,7 @@
     switchback:[[1,25,-.7],[3,8,-1.23],[7,2.5,.75]],
     caldera:[[1,25,.2],[2,7,-1.30],[5,3.2,.14]],
     ice:[[1,14,-1.25],[2,8,.36],[5,3.9,-.14]],
-    zootopia:[[1,6.5,.35],[3,3.0,-.72],[6,1.6,.42]],
+    zootopia:[[1,5.2,.25],[3,2.6,-.58],[6,1.1,.22]],
   };
 
   const routePoints = {
@@ -670,7 +671,7 @@
     switchback:[[230,300],[-70,308],[-277,246],[-320,143],[-262,94],[-132,99],[-110,18],[-268,-17],[-340,-88],[-266,-151],[-124,-119],[-114,-197],[-274,-235],[-223,-322],[13,-340],[201,-286],[280,-145],[255,-20],[342,87],[350,241],[305,298]],
     caldera:[[0,365],[-215,363],[-358,279],[-407,130],[-400,-98],[-390,-283],[-311,-340],[-108,-336],[140,-337],[383,-335],[455,-250],[444,-138],[365,-112],[282,-169],[206,-128],[201,-46],[278,17],[409,28],[450,138],[368,255],[210,243],[151,160],[54,166],[8,243],[91,292],[214,329],[155,367]],
     ice:[[100,298],[-118,315],[-271,266],[-311,159],[-258,53],[-145,30],[-128,-62],[-233,-125],[-261,-229],[-131,-304],[33,-260],[96,-112],[192,-133],[198,-259],[298,-315],[389,-244],[356,-83],[288,38],[374,162],[321,265],[207,229],[164,291]],
-    zootopia:[[0,380],[-230,370],[-390,270],[-430,120],[-360,-20],[-230,-80],[-150,-180],[-230,-290],[-100,-360],[80,-370],[250,-320],[390,-210],[430,-70],[380,80],[270,190],[170,300]],
+    zootopia:[[300,300],[320,170],[260,70],[120,20],[-80,30],[-230,90],[-330,190],[-310,310],[-210,390],[-100,400],[-220,330],[-290,220],[-260,100],[-140,40],[10,70],[120,160],[230,230],[300,280]],
   };
 
   function makeRoute(points) {
@@ -737,19 +738,20 @@
     const bridge = track.id === 'coast' ? clamp(Math.min((phase - .34) / .043, (.60 - phase) / .05), 0, 1) : 0;
     if(track.id==='sunset') width=1.10;
     if(track.id==='zootopia') {
-      // One lap visits the districts from the public ride description:
-      // Tundratown ice, Sahara Square heat, Rainforest mist and Little Rodentia.
-      if(phase>=.16&&phase<.34){width=.97;grip=.84;}
-      else if(phase>=.34&&phase<.48){width=1.12;}
-      else if(phase>=.55&&phase<.72){width=.92;grip=.96;}
-      else if(phase>=.72&&phase<.82){width=.88;}
-      else if(phase>=.90){width=1.06;}
+      // One lap follows the public ride description:
+      // ZPD -> Tundratown -> Sahara Square -> Mystic Springs Oasis ->
+      // Rainforest District -> Savanna Central / Zootopia Day.
+      if(phase>=.04&&phase<.31){width=.96;grip=.82;}
+      else if(phase>=.31&&phase<.44){width=1.12;grip=1.02;}
+      else if(phase>=.44&&phase<.56){width=.88;grip=.95;}
+      else if(phase>=.56&&phase<.80){width=.92;grip=.96;}
+      else if(phase>=.80){width=1.07;}
     }
     width-=bridge*.19;
     const pad = track.id === 'city' && phase >= .235 && phase < .264 ? -1
       : track.id === 'city' && phase >= .705 && phase < .735 ? 1
-      : track.id === 'zootopia' && phase >= .485 && phase < .512 ? 1
-      : track.id === 'zootopia' && phase >= .845 && phase < .872 ? -1 : 0;
+      : track.id === 'zootopia' && phase >= .585 && phase < .612 ? 1
+      : track.id === 'zootopia' && phase >= .865 && phase < .892 ? -1 : 0;
     const course = courseAt(track, distance);
     const { curve } = course;
     const angle = phase * Math.PI * 2;
@@ -861,7 +863,7 @@
     sunset: [.16,.44,.71,1],
     coast: [.22,.61,.82,1],
     city: [.24,.57,.87,1],
-    zootopia: [.17,.40,.66,1],
+    zootopia: [.18,.44,.68,1],
   };
   const replayStep = .12;
   const maxReplayFrames = 2200;

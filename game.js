@@ -123,10 +123,14 @@
   let lastMap=-1;
   let lastZooZone='';
   const zooDistricts=[
-    [.155,'稀树草原中心'],[.335,'冰川镇'],[.545,'撒哈拉广场'],
-    [.735,'雨林区'],[.835,'小型啮齿动物镇'],[.925,'动物城天际线'],[1.01,'全城疯唱广场'],
+    [.04,'动物城警局'],[.31,'冰川镇'],[.44,'撒哈拉广场'],
+    [.56,'神秘泉绿洲'],[.80,'雨林区'],[1.01,'稀树草原中心'],
   ];
   const zooDistrict=distance=>zooDistricts.find(([edge])=>distance<edge)?.[1]??'动物城';
+  const zooZoneColorByName={
+    '动物城警局':'#8fcfff','冰川镇':'#8fe8ff','撒哈拉广场':'#ffb45e',
+    '神秘泉绿洲':'#6fe3d1','雨林区':'#78d69b','稀树草原中心':'#ffd36e',
+  };
   let lastRaceHud=-Infinity;
   let framePending=false;
   let resumeRequested=false;
@@ -183,12 +187,25 @@
     const x=point=>(point.x-route.left)*scale+(width-route.w*scale)/2;
     const y=point=>(point.z-route.top)*scale+(height-route.h*scale)/2;
     ctx.beginPath();
-    for (const [i,point] of route.points.entries()) {
-      if (i===0) ctx.moveTo(x(point),y(point));
-      else ctx.lineTo(x(point),y(point));
+    ctx.lineCap='round';ctx.lineJoin='round';
+    if(track.id==='zootopia'){
+      const colorAt=phase=>zooMapZones.find(([from,to])=>phase>=from&&phase<to)?.[2]??'#ffd36e';
+      for(let i=0;i<route.points.length-1;i++){
+        const phase=i/(route.points.length-1);
+        ctx.beginPath();ctx.moveTo(x(route.points[i]),y(route.points[i]));ctx.lineTo(x(route.points[i+1]),y(route.points[i+1]));
+        ctx.strokeStyle=colorAt(phase);ctx.lineWidth=3.1;ctx.stroke();
+      }
+      const start=route.points[0];
+      ctx.beginPath();ctx.arc(x(start),y(start),2.4,0,Math.PI*2);ctx.fillStyle='#f4f7ef';ctx.fill();
+      ctx.beginPath();ctx.arc(x(start),y(start),1.1,0,Math.PI*2);ctx.fillStyle='#111820';ctx.fill();
+    } else {
+      for (const [i,point] of route.points.entries()) {
+        if (i===0) ctx.moveTo(x(point),y(point));
+        else ctx.lineTo(x(point),y(point));
+      }
+      ctx.closePath();
+      ctx.strokeStyle='#e3e8e75e'; ctx.lineWidth=2.1; ctx.stroke();
     }
-    ctx.closePath();
-    ctx.strokeStyle='#e3e8e75e'; ctx.lineWidth=2.1; ctx.stroke();
     for (const entry of [...race.opponents.filter(rival=>!rival.retired),race]) {
       const point=Kart.courseAt(track,entry.distance);
       ctx.beginPath();
@@ -375,9 +392,58 @@
     showDialog('garage-matrix',`<h2 id="dialog-title">车系图谱</h2><p>5 车系 × 7 等级 = 35 辆。C1 新秀 → Z7 旗舰；车身颜色代表车系，轮圈与饰条代表等级。</p><div class="car-matrix"><table><thead><tr><th>车系</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="dialog-actions"><button class="primary" data-action="close">关闭</button></div>`);
   }
 
+  const zooMapZones=[
+    [0,.04,'#8fcfff','ZPD'], [.04,.31,'#8fe8ff','冰川镇'], [.31,.44,'#ffb45e','撒哈拉'],
+    [.44,.56,'#6fe3d1','神秘泉'], [.56,.80,'#78d69b','雨林区'], [.80,1,'#ffd36e','稀树草原'],
+  ];
+  function drawZooTrackCard(canvas,track) {
+    const box=canvas.getBoundingClientRect();
+    const w=Math.max(300,Math.round(box.width||420)),h=Math.max(150,Math.round(box.height||190));
+    const ratio=Math.min(2,window.devicePixelRatio||1);
+    canvas.width=Math.round(w*ratio);canvas.height=Math.round(h*ratio);
+    const ctx=canvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.fillStyle='#111820';ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='#1d2a32';ctx.lineWidth=1;
+    for(let x=0;x<w;x+=26){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    for(let y=0;y<h;y+=26){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+    const points=Array.from({length:160},(_,i)=>Kart.courseAt(track,track.length*i/160));
+    const xs=points.map(p=>p.x),zs=points.map(p=>p.z);
+    const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...zs),bottom=Math.max(...zs);
+    const pad=20,scale=Math.min((w-pad*2)/Math.max(1,right-left),(h-pad*2)/Math.max(1,bottom-top));
+    const px=p=>(p.x-left)*scale+(w-(right-left)*scale)/2;
+    const py=p=>(p.z-top)*scale+(h-(bottom-top)*scale)/2;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle='#1b262e';ctx.lineWidth=9;
+    ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(px(p),py(p)):ctx.moveTo(px(p),py(p)));ctx.stroke();
+    for(const [from,to,color] of zooMapZones){
+      ctx.strokeStyle=color;ctx.lineWidth=4.2;ctx.beginPath();let started=false;
+      for(let i=0;i<points.length;i++){
+        const f=i/(points.length-1);
+        if(f>=from&&f<=to){const p=points[i];if(!started){ctx.moveTo(px(p),py(p));started=true;}else ctx.lineTo(px(p),py(p));}
+      }
+      if(started)ctx.stroke();
+    }
+    const start=points[0],sx=px(start),sy=py(start);
+    ctx.fillStyle='#f4f7ef';ctx.fillRect(sx-5,sy-7,10,14);
+    ctx.fillStyle='#111820';for(let i=0;i<3;i++)ctx.fillRect(sx-5,sy-7+i*5,5,3),ctx.fillRect(sx,sy-4+i*5,5,3);
+    ctx.font='700 11px "Microsoft YaHei",Arial';ctx.textBaseline='middle';
+    for(const [from,to,color,label] of zooMapZones){
+      const f=(from+Math.min(to,.999))/2,p=Kart.courseAt(track,track.length*f);
+      let x=px(p),y=py(p);
+      const align=x>w*.55?'right':'left';ctx.textAlign=align;
+      ctx.fillStyle='#10161c';ctx.fillRect(x+(align==='right'?-ctx.measureText(label).width-8:4),y-8,ctx.measureText(label).width+4,14);
+      ctx.fillStyle=color;ctx.fillText(label,x+(align==='right'?-4:6),y);
+    }
+    ctx.fillStyle='#7f8d86';ctx.font='10px Arial';ctx.textAlign='left';ctx.fillText('ZOOTOPIA HOT PURSUIT · 6 DISTRICTS · 1 LAP',8,h-7);
+  }
+
   function drawCards() {
     if(page==='garage-page') for (const button of carGrid.children) KartRender.garage(button.querySelector('canvas'), Kart.configureCar(button.dataset.car), .63, true);
-    else for (const button of trackGrid.children) KartRender.preview(button.querySelector('canvas'), tracks.find(track => track.id === button.dataset.track));
+    else for (const button of trackGrid.children) {
+      const track=tracks.find(item=>item.id===button.dataset.track);
+      if(track.id==='zootopia') drawZooTrackCard(button.querySelector('canvas'),track);
+      else KartRender.preview(button.querySelector('canvas'),track);
+    }
   }
 
   function switchPage(target, focus = false) {
@@ -1131,6 +1197,7 @@
       const phase=((race.distance/race.track.length)%1+1)%1;
       const zone=zooDistrict(phase);
       $('race-track').textContent=`动物城 · ${zone}`;
+      $('race-track').style.color=zooZoneColorByName[zone]??'';
       if(zone!==lastZooZone) {
         lastZooZone=zone;
         if(race.phase==='racing') flash(zone,1.25);

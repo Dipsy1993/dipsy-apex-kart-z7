@@ -23,7 +23,7 @@
 
   async function checkOfflineStatus() {
     const home = new URL('./', location.href);
-    const cacheName = 'apex-z7-playtest-v14';
+    const cacheName = 'apex-z7-playtest-v15';
     if (navigator.serviceWorker.controller && await caches.match(home, { cacheName })) {
       status.textContent = '可离线游玩';
     }
