@@ -4017,7 +4017,7 @@ function l0(i,t){if(ua||=t0(i),!ua||ua.canvas.hidden)return!1;let e=ua,n=i.paren
     const mesh=new Ht(new We(width*.92,height),new de({map:tex,emissiveMap:tex,emissive:'#ffffff',emissiveIntensity:.24,roughness:.62,metalness:.08}));
     const inner=lateral-side*(width/2+.06);
     mesh.position.copy(ut(road,inner,height*.5+.3));
-    mesh.rotation.y=yaw+side*Math.PI/2;
+    mesh.rotation.y=yaw-side*Math.PI/2;
     scene.add(mesh);return mesh;
   }
   function kitWindows(road,side,lateral,width,depth,levels,color,yaw){
