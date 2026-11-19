@@ -118,6 +118,9 @@
   let engineGain = null;
   let tireGain = null;
   let tireFilter = null;
+  let ambientGain = null;
+  let ambientFilter = null;
+  let ambientNoise = null;
   let prevCount = 4;
   let last = 0;
   let lastMap=-1;
@@ -505,6 +508,13 @@
       tireGain.gain.value=0;
       tires.connect(tireFilter).connect(tireGain).connect(audio.destination);
       tires.start();
+      ambientNoise=audio.createBufferSource();
+      ambientNoise.buffer=noise;ambientNoise.loop=true;
+      ambientFilter=audio.createBiquadFilter();
+      ambientFilter.type='bandpass';ambientFilter.Q.value=.55;ambientFilter.frequency.value=900;
+      ambientGain=audio.createGain();ambientGain.gain.value=0;
+      ambientNoise.connect(ambientFilter).connect(ambientGain).connect(audio.destination);
+      ambientNoise.start();
       music=KartMusic.make(audio,()=>{
         const status=dialog.querySelector('[data-music-status]');
         if(status) status.textContent=navigator.onLine===false?'这首曲目尚未缓存，离线仍可比赛。':'曲目暂时无法播放，仍可继续比赛。';
@@ -584,6 +594,22 @@
     const notes=zooZoneNotes[zone];
     if(notes) notes.forEach((f,i)=>beep(f,.14,i*.07));
   }
+  const zooAmbient={
+    '动物城警局':{gain:.005,freq:520,q:.5},
+    '冰川镇':{gain:.017,freq:1450,q:.45},
+    '撒哈拉广场':{gain:.013,freq:320,q:.4},
+    '神秘泉绿洲':{gain:.014,freq:680,q:.9},
+    '雨林区':{gain:.020,freq:1800,q:.55},
+    '稀树草原中心':{gain:.017,freq:900,q:.5},
+  };
+  function zooAmbientSound(zone){
+    if(!audio||audio.state!=='running'||!ambientGain||!ambientFilter) return;
+    const p=zooAmbient[zone]??{gain:0,freq:700,q:.5};
+    const now=audio.currentTime;
+    ambientGain.gain.setTargetAtTime(soundEnabled?p.gain:0,now,.65);
+    ambientFilter.frequency.setTargetAtTime(p.freq,now,.8);
+    ambientFilter.Q.setTargetAtTime(p.q,now,.8);
+  }
 
   function engineSound() {
     if (!audio || !engine) return;
@@ -608,6 +634,7 @@
     if(audio?.state==='running') {
       engineGain.gain.setValueAtTime(0,audio.currentTime);
       tireGain.gain.setValueAtTime(0,audio.currentTime);
+      ambientGain?.gain.setValueAtTime(0,audio.currentTime);
       audio.suspend().catch(()=>{});
     }
   }
@@ -1220,6 +1247,11 @@
       if(zone!==lastZooZone) {
         lastZooZone=zone;
         if(race.phase==='racing') { flash(zone,1.25); zooZoneSound(zone); }
+      }
+      if(zone!==race.zooAmbientZone||race.phase==='racing'&&!race.zooAmbientOn){
+        race.zooAmbientZone=zone;
+        if(race.phase==='racing') race.zooAmbientOn=true;
+        zooAmbientSound(zone);
       }
     }
     $('place').textContent = cupPractice?'练习':sectorPractice?'重练':lesson?'训练':comparisonRun ? (comparisonRun.courseId?race.car.tier:(comparisonRun.index?'试驾 B':'试驾 A')) : quickDrive||trialCar ? '试驾' : race.mode === 'solo' ? '计时' : race.place;
